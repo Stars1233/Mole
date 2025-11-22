@@ -453,6 +453,10 @@ func collectDisks() ([]DiskStatus, error) {
 		if strings.HasPrefix(part.Mountpoint, "/System/Volumes/") {
 			continue
 		}
+		// Skip private volumes
+		if strings.HasPrefix(part.Mountpoint, "/private/") {
+			continue
+		}
 		if seenDevice[part.Device] {
 			continue
 		}
@@ -464,7 +468,9 @@ func collectDisks() ([]DiskStatus, error) {
 		if usage.Total < 1<<30 {
 			continue
 		}
-		volKey := fmt.Sprintf("%s:%d", part.Fstype, usage.Total>>30)
+		// For APFS volumes, use a more precise dedup key (bytes level)
+		// to handle shared storage pools properly
+		volKey := fmt.Sprintf("%s:%d", part.Fstype, usage.Total)
 		if seenVolume[volKey] {
 			continue
 		}
