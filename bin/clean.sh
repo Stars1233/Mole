@@ -735,6 +735,81 @@ perform_cleanup() {
         sudo rm -rf /Library/Updates/* 2> /dev/null || true
         log_success "System library caches and updates"
 
+        # Clean up orphaned cask records (apps manually deleted) while sudo is fresh
+        if command -v brew > /dev/null 2>&1; then
+            if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning orphaned casks..."; fi
+
+            local cache_dir="$HOME/.cache/mole"
+            local cask_cache="$cache_dir/cask_apps.cache"
+            local use_cache=false
+
+            # Check if cache is valid (less than 2 days old)
+            if [[ -f "$cask_cache" ]]; then
+                local cache_age=$(( $(date +%s) - $(stat -f%m "$cask_cache") ))
+                if [[ $cache_age -lt 172800 ]]; then
+                    use_cache=true
+                fi
+            fi
+
+            local orphaned_casks=()
+            if [[ "$use_cache" == "true" ]]; then
+                # Use cached cask → app mapping
+                while IFS='|' read -r cask app_name; do
+                    [[ ! -e "/Applications/$app_name" ]] && orphaned_casks+=("$cask")
+                done < "$cask_cache"
+            else
+                # Rebuild cache
+                mkdir -p "$cache_dir"
+                > "$cask_cache"
+
+                while IFS= read -r cask; do
+                    # Get app path from cask info
+                    local cask_info
+                    cask_info=$(brew info --cask "$cask" 2>/dev/null || true)
+
+                    # Extract app name from "AppName.app (App)" format
+                    local app_name
+                    app_name=$(echo "$cask_info" | grep -E '\.app \(App\)' | head -1 | sed -E 's/^[[:space:]]*//' | sed -E 's/ \(App\).*//' || true)
+
+                    # Skip if no app artifact (might be a utility package)
+                    [[ -z "$app_name" ]] && continue
+
+                    # Save to cache
+                    echo "$cask|$app_name" >> "$cask_cache"
+
+                    # Check if app exists
+                    [[ ! -e "/Applications/$app_name" ]] && orphaned_casks+=("$cask")
+                done < <(brew list --cask 2>/dev/null || true)
+            fi
+
+            # Remove orphaned casks if found
+            if [[ ${#orphaned_casks[@]} -gt 0 ]]; then
+                # Check if sudo session is still valid (without prompting)
+                if sudo -n true 2>/dev/null; then
+                    if [[ -t 1 ]]; then
+                        stop_inline_spinner
+                        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Cleaning orphaned casks..."
+                    fi
+
+                    local removed_casks=0
+                    for cask in "${orphaned_casks[@]}"; do
+                        if brew uninstall --cask "$cask" --force > /dev/null 2>&1; then
+                            ((removed_casks++))
+                        fi
+                    done
+
+                    if [[ -t 1 ]]; then stop_inline_spinner; fi
+
+                    [[ $removed_casks -gt 0 ]] && log_success "Orphaned Homebrew casks ($removed_casks apps)"
+                else
+                    if [[ -t 1 ]]; then stop_inline_spinner; fi
+                    echo -e "  ${YELLOW}${ICON_WARNING}${NC} Found ${#orphaned_casks[@]} orphaned casks (sudo expired, run ${GRAY}brew list --cask${NC} to check)"
+                fi
+            else
+                if [[ -t 1 ]]; then stop_inline_spinner; fi
+            fi
+        fi
+
         end_section
     fi
 
@@ -974,50 +1049,71 @@ perform_cleanup() {
     safe_clean /usr/local/var/homebrew/locks/* "Homebrew lock files (Intel)"
     if command -v brew > /dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
-            if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup..."; fi
+            # Check if brew cleanup was run recently (within 2 days)
+            local brew_cache_file="${HOME}/.cache/mole/brew_last_cleanup"
+            local cache_valid_days=2
+            local should_skip=false
 
-            # Run brew cleanup with timeout
-            local brew_output=""
-            local brew_success=false
-            local timeout_seconds=${MO_BREW_TIMEOUT:-120}
-            local brew_tmp_file
+            if [[ -f "$brew_cache_file" ]]; then
+                local last_cleanup
+                last_cleanup=$(cat "$brew_cache_file" 2>/dev/null || echo "0")
+                local current_time
+                current_time=$(date +%s)
+                local time_diff=$((current_time - last_cleanup))
+                local days_diff=$((time_diff / 86400))
+
+                if [[ $days_diff -lt $cache_valid_days ]]; then
+                    should_skip=true
+                    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Homebrew (cleaned ${days_diff}d ago, skipped)"
+                fi
+            fi
+
+            if [[ "$should_skip" == "false" ]]; then
+                if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup and autoremove..."; fi
+
+                local timeout_seconds=${MO_BREW_TIMEOUT:-120}
+
+            # Run brew cleanup and autoremove in parallel
+            local brew_tmp_file autoremove_tmp_file
             brew_tmp_file=$(create_temp_file)
+            autoremove_tmp_file=$(create_temp_file)
 
-            # Run brew cleanup in background with manual timeout
-            # Clean old versions only (default 2 minutes, configurable via MO_BREW_TIMEOUT)
-            # Uses default 120-day threshold to avoid breaking zsh completions
             (brew cleanup > "$brew_tmp_file" 2>&1) &
             local brew_pid=$!
-            local elapsed=0
 
-            # Wait for completion or timeout
-            while kill -0 $brew_pid 2> /dev/null; do
+            (brew autoremove > "$autoremove_tmp_file" 2>&1) &
+            local autoremove_pid=$!
+
+            local elapsed=0
+            local brew_done=false
+            local autoremove_done=false
+
+            # Wait for both to complete or timeout
+            while [[ "$brew_done" == "false" ]] || [[ "$autoremove_done" == "false" ]]; do
                 if [[ $elapsed -ge $timeout_seconds ]]; then
-                    # Timeout reached - kill the process
-                    kill -TERM $brew_pid 2> /dev/null || true
-                    wait $brew_pid 2> /dev/null || true
+                    kill -TERM $brew_pid $autoremove_pid 2> /dev/null || true
                     break
                 fi
+
+                kill -0 $brew_pid 2> /dev/null || brew_done=true
+                kill -0 $autoremove_pid 2> /dev/null || autoremove_done=true
+
                 sleep 1
                 ((elapsed++))
             done
 
-            # Check if process completed successfully
-            wait $brew_pid 2> /dev/null && brew_success=true || true
+            # Wait for processes to finish
+            wait $brew_pid 2> /dev/null && local brew_success=true || local brew_success=false
+            wait $autoremove_pid 2> /dev/null && local autoremove_success=true || local autoremove_success=false
 
             if [[ -t 1 ]]; then stop_inline_spinner; fi
 
-            # Read output
-            if [[ -f "$brew_tmp_file" ]]; then
+            # Process cleanup output
+            if [[ "$brew_success" == "true" && -f "$brew_tmp_file" ]]; then
+                local brew_output
                 brew_output=$(cat "$brew_tmp_file" 2> /dev/null || echo "")
-            fi
-
-            if [[ "$brew_success" == "true" && $elapsed -lt $timeout_seconds ]]; then
-                # Show summary of what was cleaned
-                local removed_count
+                local removed_count freed_space
                 removed_count=$(printf '%s\n' "$brew_output" | grep -c "Removing:" 2> /dev/null || true)
-                removed_count="${removed_count:-0}"
-                local freed_space
                 freed_space=$(printf '%s\n' "$brew_output" | grep -o "[0-9.]*[KMGT]B freed" 2> /dev/null | tail -1 || true)
 
                 if [[ $removed_count -gt 0 ]] || [[ -n "$freed_space" ]]; then
@@ -1026,15 +1122,33 @@ perform_cleanup() {
                     else
                         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Homebrew cleanup (${removed_count} items)"
                     fi
-                else
-                    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Homebrew cleanup"
                 fi
-            else
-                # Timeout or error occurred
+            elif [[ $elapsed -ge $timeout_seconds ]]; then
                 echo -e "  ${YELLOW}${ICON_WARNING}${NC} Homebrew cleanup timed out (run ${GRAY}brew cleanup${NC} manually)"
             fi
+
+            # Process autoremove output - only show if packages were removed
+            if [[ "$autoremove_success" == "true" && -f "$autoremove_tmp_file" ]]; then
+                local autoremove_output
+                autoremove_output=$(cat "$autoremove_tmp_file" 2> /dev/null || echo "")
+                local removed_packages
+                removed_packages=$(printf '%s\n' "$autoremove_output" | grep -c "^Uninstalling" 2> /dev/null || true)
+
+                if [[ $removed_packages -gt 0 ]]; then
+                    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Removed orphaned dependencies (${removed_packages} packages)"
+                fi
+            elif [[ $elapsed -ge $timeout_seconds ]]; then
+                echo -e "  ${YELLOW}${ICON_WARNING}${NC} Autoremove timed out (run ${GRAY}brew autoremove${NC} manually)"
+            fi
+
+                # Update cache timestamp on successful completion
+                if [[ "$brew_success" == "true" || "$autoremove_success" == "true" ]]; then
+                    mkdir -p "$(dirname "$brew_cache_file")"
+                    date +%s > "$brew_cache_file"
+                fi
+            fi
         else
-            echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup)"
+            echo -e "  ${YELLOW}→${NC} Homebrew (would cleanup and autoremove)"
         fi
         note_activity
     fi
@@ -1737,78 +1851,6 @@ perform_cleanup() {
 
     if [[ $tm_cleaned -eq 0 ]]; then
         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} No failed Time Machine backups found"
-    fi
-    end_section
-
-    # ===== Check for large project dependencies =====
-    start_section "Large project dependencies"
-
-    if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning project directories..."; fi
-
-    local node_modules_size=0
-    local node_modules_count=0
-    local venv_size=0
-    local venv_count=0
-
-    # Use a single find with du to batch process node_modules
-    # This is much faster than running du separately for each directory
-    # Search only likely project directories to speed up scanning
-    local search_paths=()
-    [[ -d "$HOME/Documents" ]] && search_paths+=("$HOME/Documents")
-    [[ -d "$HOME/Desktop" ]] && search_paths+=("$HOME/Desktop")
-    [[ -d "$HOME/Projects" ]] && search_paths+=("$HOME/Projects")
-    [[ -d "$HOME/www" ]] && search_paths+=("$HOME/www")
-    [[ -d "$HOME/Code" ]] && search_paths+=("$HOME/Code")
-    [[ -d "$HOME/dev" ]] && search_paths+=("$HOME/dev")
-
-    # If no common project dirs found, search HOME but with depth 3
-    if [[ ${#search_paths[@]} -eq 0 ]]; then
-        search_paths=("$HOME")
-    fi
-
-    while IFS=$'\t' read -r size_kb nm_dir; do
-        [[ ! -d "$nm_dir" ]] && continue
-        if [[ $size_kb -gt 102400 ]]; then # > 100MB
-            ((node_modules_size += size_kb))
-            ((node_modules_count++))
-        fi
-    done < <(find "${search_paths[@]}" -maxdepth 4 -type d -name "node_modules" -mtime +60 \
-        -not -path "*/Library/*" \
-        -not -path "*/.Trash/*" \
-        -print0 2> /dev/null |
-        xargs -0 -n 20 -P 4 sh -c 'for dir in "$@"; do du -sk "$dir" 2>/dev/null || echo "0 $dir"; done' _ |
-        awk '{print $1 "\t" substr($0, index($0,$2))}' || true)
-
-    # Use a single find with du to batch process venv directories
-    while IFS=$'\t' read -r size_kb venv_dir; do
-        [[ ! -d "$venv_dir" ]] && continue
-        if [[ $size_kb -gt 51200 ]]; then # > 50MB
-            ((venv_size += size_kb))
-            ((venv_count++))
-        fi
-    done < <(find "${search_paths[@]}" -maxdepth 4 -type d \( -name "venv" -o -name ".venv" -o -name "env" \) -mtime +60 \
-        -not -path "*/Library/*" \
-        -not -path "*/.Trash/*" \
-        -not -path "*/node_modules/*" \
-        -print0 2> /dev/null |
-        xargs -0 -n 20 -P 4 sh -c 'for dir in "$@"; do du -sk "$dir" 2>/dev/null || echo "0 $dir"; done' _ |
-        awk '{print $1 "\t" substr($0, index($0,$2))}' || true)
-
-    if [[ -t 1 ]]; then stop_inline_spinner; fi
-
-    # Show suggestions if found
-    if [[ $node_modules_count -gt 0 ]] || [[ $venv_count -gt 0 ]]; then
-        if [[ $node_modules_count -gt 0 ]]; then
-            local nm_gb=$(echo "$node_modules_size" | awk '{printf "%.1f", $1/1024/1024}')
-            echo -e "  ${YELLOW}☻${NC} Found ${YELLOW}${nm_gb}GB${NC} in $node_modules_count old node_modules ${GRAY}(60+ days)${NC}"
-        fi
-        if [[ $venv_count -gt 0 ]]; then
-            local venv_gb=$(echo "$venv_size" | awk '{printf "%.1f", $1/1024/1024}')
-            echo -e "  ${YELLOW}☻${NC} Found ${YELLOW}${venv_gb}GB${NC} in $venv_count old Python venv ${GRAY}(60+ days)${NC}"
-        fi
-        echo -e "  ${YELLOW}☻${NC} Run ${GRAY}mo analyze${NC} to see details and manually clean"
-    else
-        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} No large unused project dependencies found"
     fi
     end_section
 
