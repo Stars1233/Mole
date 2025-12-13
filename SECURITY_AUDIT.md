@@ -62,6 +62,9 @@ Mole's "Smart Uninstall" and orphan detection (`lib/clean/apps.sh`) are intentio
 - **Time Machine Preservation**
     Before cleaning failed backups, Mole checks for the `backupd` process. If a backup is currently running, the cleanup task is strictly **aborted** to prevent data corruption.
 
+- **VPN & Proxy Protection**
+    Mole includes a comprehensive protection layer for VPN and Proxy applications (e.g., Shadowsocks, V2Ray, Tailscale). It protects both their application bundles and data directories from automated cleanup to prevent network configuration loss.
+
 ## 4. Atomic Operations & Crash Safety
 
 We anticipate that scripts can be interrupted (e.g., power loss, `Ctrl+C`).

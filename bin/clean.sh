@@ -223,7 +223,7 @@ safe_clean() {
 
         # Hard-coded protection for critical apps (cannot be disabled by user)
         case "$path" in
-            *clash* | *Clash* | *surge* | *Surge* | *mihomo* | *openvpn* | *OpenVPN*)
+            *clash* | *Clash* | *surge* | *Surge* | *mihomo* | *openvpn* | *OpenVPN* | *verge* | *Verge* | *shadowsocks* | *Shadowsocks* | *v2ray* | *V2Ray* | *sing-box* | *tailscale* | *nordvpn* | *NordVPN* | *expressvpn* | *ExpressVPN* | *protonvpn* | *ProtonVPN* | *mullvad* | *Mullvad* | *hiddify* | *Hiddify* | *loon* | *Loon*)
                 skip=true
                 ((skipped_count++))
                 ;;
