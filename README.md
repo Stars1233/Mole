@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Mole</h1>
-  <p><em>Dig deep like a mole to optimize your Mac.</em></p>
+  <p><em>Deep clean and optimize your Mac.</em></p>
 </div>
 
 <p align="center">
