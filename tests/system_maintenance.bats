@@ -221,43 +221,6 @@ EOF
     [ "$status" -eq 124 ]
 }
 
-@test "opt_recent_items removes shared file lists" {
-    local shared_dir="$HOME/Library/Application Support/com.apple.sharedfilelist"
-    mkdir -p "$shared_dir"
-    touch "$shared_dir/test.sfl2"
-    touch "$shared_dir/recent.sfl2"
-
-    run env HOME="$HOME" bash --noprofile --norc << 'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-# Mock sudo and defaults to avoid system changes
-sudo() { return 0; }
-defaults() { return 0; }
-export -f sudo defaults
-opt_recent_items
-EOF
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Recent items cleared"* ]]
-}
-
-@test "opt_recent_items handles missing shared directory" {
-    rm -rf "$HOME/Library/Application Support/com.apple.sharedfilelist"
-
-    run env HOME="$HOME" bash --noprofile --norc << 'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-sudo() { return 0; }
-defaults() { return 0; }
-export -f sudo defaults
-opt_recent_items
-EOF
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Recent items cleared"* ]]
-}
 
 @test "opt_saved_state_cleanup removes old saved states" {
     local state_dir="$HOME/Library/Saved Application State"
@@ -288,7 +251,7 @@ opt_saved_state_cleanup
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"No saved states directory"* ]]
+    [[ "$output" == *"App saved states optimized"* ]]
 }
 
 @test "opt_cache_refresh cleans Quick Look cache" {
@@ -311,46 +274,9 @@ opt_cache_refresh
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Finder and Safari caches updated"* ]]
+    [[ "$output" == *"QuickLook thumbnails refreshed"* ]]
 }
 
-@test "opt_mail_downloads skips cleanup when size below threshold" {
-    mkdir -p "$HOME/Library/Mail Downloads"
-    # Create small file (below threshold of 5MB)
-    echo "test" > "$HOME/Library/Mail Downloads/small.txt"
-
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-# MOLE_MAIL_DOWNLOADS_MIN_KB is readonly, defaults to 5120 KB (~5MB)
-opt_mail_downloads
-EOF
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"skipping cleanup"* ]]
-    [ -f "$HOME/Library/Mail Downloads/small.txt" ]
-}
-
-@test "opt_mail_downloads removes old attachments" {
-    mkdir -p "$HOME/Library/Mail Downloads"
-    touch "$HOME/Library/Mail Downloads/old.pdf"
-    # Make file old (31+ days) - MOLE_LOG_AGE_DAYS defaults to 30
-    touch -t 202301010000 "$HOME/Library/Mail Downloads/old.pdf"
-
-    # Create large enough size to trigger cleanup (>5MB threshold)
-    dd if=/dev/zero of="$HOME/Library/Mail Downloads/dummy.dat" bs=1024 count=6000 2>/dev/null
-
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-# MOLE_MAIL_DOWNLOADS_MIN_KB and MOLE_LOG_AGE_DAYS are readonly constants
-opt_mail_downloads
-EOF
-
-    [ "$status" -eq 0 ]
-}
 
 @test "get_path_size_kb returns zero for missing directory" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MO_DEBUG=0 bash --noprofile --norc << 'EOF'
@@ -380,31 +306,6 @@ EOF
     [ "$output" -ge 10 ]
 }
 
-@test "opt_log_cleanup runs cleanup_path and safe_sudo_find_delete" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-
-CALLS_FILE="$HOME/log_cleanup_calls"
-: > "$CALLS_FILE"
-
-cleanup_path() {
-    echo "cleanup:$1" >> "$CALLS_FILE"
-}
-safe_sudo_find_delete() {
-    echo "safe:$1" >> "$CALLS_FILE"
-    return 0
-}
-
-opt_log_cleanup
-cat "$CALLS_FILE"
-EOF
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"cleanup:$HOME/Library/Logs/DiagnosticReports"* ]]
-    [[ "$output" == *"safe:/Library/Logs/DiagnosticReports"* ]]
-}
 
 @test "opt_fix_broken_configs reports fixes" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'

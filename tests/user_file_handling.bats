@@ -51,8 +51,8 @@ setup() {
 
 @test "is_darwin_ge correctly compares versions" {
     # Should return true for minimum <= current
-    bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; is_darwin_ge 1"
-    [ $? -eq 0 ]
+    run bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; is_darwin_ge 1"
+    [ "$status" -eq 0 ]
 
     # Should return false for very high version requirement (unless on futuristic macOS)
     # Note: With our 999 fallback, this will actually succeed on error, which is correct behavior
@@ -134,8 +134,8 @@ setup() {
 }
 
 @test "ensure_user_dir handles empty path gracefully" {
-    bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_dir ''"
-    [ $? -eq 0 ]
+    run bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_dir ''"
+    [ "$status" -eq 0 ]
 }
 
 @test "ensure_user_dir preserves ownership for non-root users" {
@@ -174,8 +174,8 @@ setup() {
 }
 
 @test "ensure_user_file handles empty path gracefully" {
-    bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_file ''"
-    [ $? -eq 0 ]
+    run bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_file ''"
+    [ "$status" -eq 0 ]
 }
 
 @test "ensure_user_file creates deeply nested files" {

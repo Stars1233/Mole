@@ -91,3 +91,78 @@ EOF
     [[ "$output" == *"protected by whitelist"* ]]
     [ -f "$HOME/Documents/.DS_Store" ]
 }
+
+@test "clean_recent_items removes shared file lists" {
+    local shared_dir="$HOME/Library/Application Support/com.apple.sharedfilelist"
+    mkdir -p "$shared_dir"
+    touch "$shared_dir/com.apple.LSSharedFileList.RecentApplications.sfl2"
+    touch "$shared_dir/com.apple.LSSharedFileList.RecentDocuments.sfl2"
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/user.sh"
+safe_clean() {
+    echo "safe_clean $1"
+}
+clean_recent_items
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Recent"* ]]
+}
+
+@test "clean_recent_items handles missing shared directory" {
+    rm -rf "$HOME/Library/Application Support/com.apple.sharedfilelist"
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/user.sh"
+safe_clean() {
+    echo "safe_clean $1"
+}
+clean_recent_items
+EOF
+
+    [ "$status" -eq 0 ]
+}
+
+@test "clean_mail_downloads skips cleanup when size below threshold" {
+    mkdir -p "$HOME/Library/Mail Downloads"
+    echo "test" > "$HOME/Library/Mail Downloads/small.txt"
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/user.sh"
+clean_mail_downloads
+EOF
+
+    [ "$status" -eq 0 ]
+    [ -f "$HOME/Library/Mail Downloads/small.txt" ]
+}
+
+@test "clean_mail_downloads removes old attachments" {
+    mkdir -p "$HOME/Library/Mail Downloads"
+    touch "$HOME/Library/Mail Downloads/old.pdf"
+    # Make file old (31+ days)
+    touch -t 202301010000 "$HOME/Library/Mail Downloads/old.pdf"
+
+    # Create large enough size to trigger cleanup (>5MB threshold)
+    dd if=/dev/zero of="$HOME/Library/Mail Downloads/dummy.dat" bs=1024 count=6000 2>/dev/null
+
+    # Verify file exists before cleanup
+    [ -f "$HOME/Library/Mail Downloads/old.pdf" ]
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/user.sh"
+clean_mail_downloads
+EOF
+
+    [ "$status" -eq 0 ]
+    # Verify old file was actually removed
+    [ ! -f "$HOME/Library/Mail Downloads/old.pdf" ]
+}
