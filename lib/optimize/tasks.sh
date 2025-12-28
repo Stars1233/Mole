@@ -210,7 +210,7 @@ opt_network_optimization() {
 opt_sqlite_vacuum() {
     local optimized_count=0
     local total_saved_kb=0
-    local min_size_kb=1024  # Only optimize databases larger than 1MB
+    local min_size_kb=1024 # Only optimize databases larger than 1MB
 
     # List of safe databases to optimize
     # Exclude critical system databases like Mail, Messages, Photos
@@ -228,7 +228,7 @@ opt_sqlite_vacuum() {
         [[ ! -f "$db_path" ]] && continue
 
         # Check if it's a SQLite database
-        if ! file "$db_path" 2>/dev/null | grep -q "SQLite"; then
+        if ! file "$db_path" 2> /dev/null | grep -q "SQLite"; then
             continue
         fi
 
@@ -252,7 +252,7 @@ opt_sqlite_vacuum() {
         fi
 
         # Verify database integrity before VACUUM
-        if ! sqlite3 "$db_path" "PRAGMA integrity_check;" 2>/dev/null | grep -q "ok"; then
+        if ! sqlite3 "$db_path" "PRAGMA integrity_check;" 2> /dev/null | grep -q "ok"; then
             debug_log "Skipping $db_path - integrity check failed"
             continue
         fi
@@ -261,9 +261,9 @@ opt_sqlite_vacuum() {
         local size_before=$db_size_kb
 
         # Perform VACUUM with error handling
-        if sqlite3 "$db_path" "VACUUM;" 2>/dev/null; then
+        if sqlite3 "$db_path" "VACUUM;" 2> /dev/null; then
             # Verify database integrity after VACUUM
-            if ! sqlite3 "$db_path" "PRAGMA integrity_check;" 2>/dev/null | grep -q "ok"; then
+            if ! sqlite3 "$db_path" "PRAGMA integrity_check;" 2> /dev/null | grep -q "ok"; then
                 debug_log "Warning: $db_path integrity check failed after VACUUM"
                 continue
             fi

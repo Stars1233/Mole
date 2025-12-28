@@ -293,11 +293,11 @@ func TestCalculateNameWidth(t *testing.T) {
 		wantMin   int
 		wantMax   int
 	}{
-		{80, 19, 60},   // 80 - 61 = 19
-		{120, 59, 60},  // 120 - 61 = 59
-		{200, 60, 60},  // Capped at 60
-		{70, 24, 60},   // Below minimum, use 24
-		{50, 24, 60},   // Very small, use minimum
+		{80, 19, 60},  // 80 - 61 = 19
+		{120, 59, 60}, // 120 - 61 = 59
+		{200, 60, 60}, // Capped at 60
+		{70, 24, 60},  // Below minimum, use 24
+		{50, 24, 60},  // Very small, use minimum
 	}
 
 	for _, tt := range tests {

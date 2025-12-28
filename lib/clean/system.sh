@@ -137,7 +137,7 @@ clean_deep_system() {
         debug_log "Symbolication cache directory found, checking size..."
         # Quick size check with timeout (max 5 seconds)
         local symbolication_size_mb=""
-        symbolication_size_mb=$(run_with_timeout 5 du -sm "/System/Library/Caches/com.apple.coresymbolicationd/data" 2>/dev/null | awk '{print $1}')
+        symbolication_size_mb=$(run_with_timeout 5 du -sm "/System/Library/Caches/com.apple.coresymbolicationd/data" 2> /dev/null | awk '{print $1}')
 
         # Validate that we got a valid size (non-empty and numeric)
         if [[ -n "$symbolication_size_mb" && "$symbolication_size_mb" =~ ^[0-9]+$ ]]; then
@@ -170,7 +170,7 @@ clean_deep_system() {
 
     # Clean each path if exists
     for ali_path in "${ali_paths[@]}"; do
-        if sudo test -e "$ali_path" 2>/dev/null; then
+        if sudo test -e "$ali_path" 2> /dev/null; then
             debug_log "Found Aliyun component: $ali_path, removing..."
             safe_sudo_remove "$ali_path" && ((ali_cleaned++)) || true
         fi
