@@ -27,6 +27,8 @@ print_header() {
 
 run_system_checks() {
     unset AUTO_FIX_SUMMARY AUTO_FIX_DETAILS
+    unset MOLE_SECURITY_FIXES_SHOWN
+    unset MOLE_SECURITY_FIXES_SKIPPED
     echo ""
 
     # Run checks and display results directly without grouping
@@ -40,7 +42,9 @@ run_system_checks() {
     if ask_for_security_fixes; then
         perform_security_fixes
     fi
-    echo ""
+    if [[ "${MOLE_SECURITY_FIXES_SKIPPED:-}" != "true" ]]; then
+        echo ""
+    fi
 
     check_all_config
     echo ""
@@ -233,27 +237,30 @@ ask_for_security_fixes() {
         return 1
     fi
 
+    echo ""
     echo -e "${BLUE}SECURITY FIXES${NC}"
     for entry in "${SECURITY_FIXES[@]}"; do
         IFS='|' read -r _ label <<< "$entry"
         echo -e "  ${ICON_LIST} $label"
     done
     echo ""
-    echo -ne "${YELLOW}Apply now?${NC} ${GRAY}Enter confirm / ESC cancel${NC}: "
+    export MOLE_SECURITY_FIXES_SHOWN=true
+    echo -ne "${YELLOW}Apply now?${NC} ${GRAY}Enter confirm / Space cancel${NC}: "
 
     local key
     if ! key=$(read_key); then
-        echo "skip"
+        export MOLE_SECURITY_FIXES_SKIPPED=true
+        echo -e "\n  ${GRAY}${ICON_WARNING}${NC} Security fixes skipped"
         echo ""
         return 1
     fi
 
     if [[ "$key" == "ENTER" ]]; then
-        echo "apply"
         echo ""
         return 0
     else
-        echo "skip"
+        export MOLE_SECURITY_FIXES_SKIPPED=true
+        echo -e "\n  ${GRAY}${ICON_WARNING}${NC} Security fixes skipped"
         echo ""
         return 1
     fi
