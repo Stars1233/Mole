@@ -292,8 +292,8 @@ is_protected_purge_artifact() {
 scan_purge_targets() {
     local search_path="$1"
     local output_file="$2"
-    local min_depth="${MOLE_PURGE_MIN_DEPTH:-$PURGE_MIN_DEPTH_DEFAULT}"
-    local max_depth="${MOLE_PURGE_MAX_DEPTH:-$PURGE_MAX_DEPTH_DEFAULT}"
+    local min_depth="$PURGE_MIN_DEPTH_DEFAULT"
+    local max_depth="$PURGE_MAX_DEPTH_DEFAULT"
     if [[ ! "$min_depth" =~ ^[0-9]+$ ]]; then
         min_depth="$PURGE_MIN_DEPTH_DEFAULT"
     fi

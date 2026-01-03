@@ -1,6 +1,6 @@
 #!/bin/bash
 # Clean Homebrew caches and remove orphaned dependencies
-# Env: MO_BREW_TIMEOUT, DRY_RUN
+# Env: DRY_RUN
 # Skips if run within 7 days, runs cleanup/autoremove in parallel with 120s timeout
 clean_homebrew() {
     command -v brew > /dev/null 2>&1 || return 0
@@ -44,7 +44,7 @@ clean_homebrew() {
         fi
     fi
     # Run cleanup/autoremove in parallel with timeout guard per command.
-    local timeout_seconds=${MO_BREW_TIMEOUT:-120}
+    local timeout_seconds=120
     local brew_tmp_file autoremove_tmp_file
     local brew_pid autoremove_pid
     local brew_exit=0
