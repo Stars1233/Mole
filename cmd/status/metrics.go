@@ -286,9 +286,8 @@ func commandExists(name string) bool {
 		return false
 	}
 	defer func() {
-		if r := recover(); r != nil { //nolint:staticcheck
-			// Treat LookPath panics as "missing".
-		}
+		// Treat LookPath panics as "missing".
+		_ = recover()
 	}()
 	_, err := exec.LookPath(name)
 	return err == nil

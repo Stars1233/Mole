@@ -32,7 +32,7 @@ func collectCPU() (CPUStatus, error) {
 	}
 
 	// Two-call pattern for more reliable CPU usage.
-	warmUpCpu()
+	warmUpCPU()
 	time.Sleep(cpuSampleInterval)
 	percents, err := cpu.Percent(0, true)
 	var totalPercent float64
@@ -256,6 +256,6 @@ func fallbackCPUUtilization(logical int) (float64, []float64, error) {
 	return avg, perCore, nil
 }
 
-func warmUpCpu() {
+func warmUpCPU() {
 	cpu.Percent(0, true) //nolint:errcheck
 }

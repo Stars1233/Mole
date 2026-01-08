@@ -1,8 +1,11 @@
+// Package main provides the mo status command for real-time system monitoring.
 package main
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -37,10 +40,50 @@ type model struct {
 	catHidden   bool // true = hidden, false = visible
 }
 
+// getConfigPath returns the path to the status preferences file.
+func getConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "mole", "status_prefs")
+}
+
+// loadCatHidden loads the cat hidden preference from config file.
+func loadCatHidden() bool {
+	path := getConfigPath()
+	if path == "" {
+		return false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == "cat_hidden=true"
+}
+
+// saveCatHidden saves the cat hidden preference to config file.
+func saveCatHidden(hidden bool) {
+	path := getConfigPath()
+	if path == "" {
+		return
+	}
+	// Ensure directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return
+	}
+	value := "cat_hidden=false"
+	if hidden {
+		value = "cat_hidden=true"
+	}
+	_ = os.WriteFile(path, []byte(value+"\n"), 0644)
+}
+
 func newModel() model {
 	return model{
 		collector: NewCollector(),
-		catHidden: false,
+		catHidden: loadCatHidden(),
 	}
 }
 
@@ -55,8 +98,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		case "k":
-			// Toggle cat visibility
+			// Toggle cat visibility and persist preference
 			m.catHidden = !m.catHidden
+			saveCatHidden(m.catHidden)
 			return m, nil
 		}
 	case tea.WindowSizeMsg:

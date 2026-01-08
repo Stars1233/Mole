@@ -134,15 +134,16 @@ func calculateHealthScore(cpu CPUStatus, mem MemoryStatus, disks []DiskStatus, d
 
 	// Build message.
 	var msg string
-	if score >= 90 {
+	switch {
+	case score >= 90:
 		msg = "Excellent"
-	} else if score >= 75 {
+	case score >= 75:
 		msg = "Good"
-	} else if score >= 60 {
+	case score >= 60:
 		msg = "Fair"
-	} else if score >= 40 {
+	case score >= 40:
 		msg = "Poor"
-	} else {
+	default:
 		msg = "Critical"
 	}
 

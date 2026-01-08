@@ -9,15 +9,13 @@ run:
   modules-download-mode: readonly
 
 linters:
-  disable-all: true
   enable:
     # Default linters
     - govet
     - staticcheck
+    - errcheck
     - ineffassign
     - unused
-    # Additional useful linters
-    - errcheck
 
 linters-settings:
   govet:

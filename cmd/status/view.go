@@ -187,15 +187,16 @@ func renderHeader(m MetricsSnapshot, errMsg string, animFrame int, termWidth int
 }
 
 func getScoreStyle(score int) lipgloss.Style {
-	if score >= 90 {
+	switch {
+	case score >= 90:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#87FF87")).Bold(true)
-	} else if score >= 75 {
+	case score >= 75:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#87D787")).Bold(true)
-	} else if score >= 60 {
+	case score >= 60:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD75F")).Bold(true)
-	} else if score >= 40 {
+	case score >= 40:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFAF5F")).Bold(true)
-	} else {
+	default:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B6B")).Bold(true)
 	}
 }
@@ -707,11 +708,11 @@ func humanBytesCompact(v uint64) string {
 	}
 }
 
-func shorten(s string, max int) string {
-	if len(s) <= max {
+func shorten(s string, maxLen int) string {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max-1] + "…"
+	return s[:maxLen-1] + "…"
 }
 
 func renderTwoColumns(cards []cardData, width int) string {
