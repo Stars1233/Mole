@@ -146,7 +146,7 @@ function Show-MainMenu {
 # Command Router
 # ============================================================================
 
-function Invoke-Command {
+function Invoke-MoleCommand {
     param(
         [string]$CommandName,
         [string[]]$Arguments
@@ -161,8 +161,45 @@ function Invoke-Command {
         return
     }
     
-    # Execute the command script with arguments
-    & $scriptPath @Arguments
+    # Execute the command script with arguments using splatting
+    # This properly handles switch parameters passed as strings
+    if ($Arguments -and $Arguments.Count -gt 0) {
+        # Build a hashtable for splatting
+        $splatParams = @{}
+        $positionalArgs = @()
+        
+        foreach ($arg in $Arguments) {
+            # Remove surrounding quotes if present
+            $cleanArg = $arg.Trim("'`"")
+            
+            if ($cleanArg -match '^-(\w+)$') {
+                # It's a switch parameter (e.g., -DryRun)
+                $paramName = $Matches[1]
+                $splatParams[$paramName] = $true
+            }
+            elseif ($cleanArg -match '^-(\w+)[=:](.+)$') {
+                # It's a named parameter with value (e.g., -Name=Value or -Name:Value)
+                $paramName = $Matches[1]
+                $paramValue = $Matches[2].Trim("'`"")
+                $splatParams[$paramName] = $paramValue
+            }
+            else {
+                # Positional argument
+                $positionalArgs += $cleanArg
+            }
+        }
+        
+        # Execute with splatting
+        if ($positionalArgs.Count -gt 0) {
+            & $scriptPath @splatParams @positionalArgs
+        }
+        else {
+            & $scriptPath @splatParams
+        }
+    }
+    else {
+        & $scriptPath
+    }
 }
 
 # ============================================================================
@@ -194,27 +231,44 @@ function Main {
     # Initialize
     Initialize-Mole
     
+    # Handle switches passed as strings (when called via batch file with quoted args)
+    # e.g., mole '-ShowHelp' becomes $Command = "-ShowHelp" instead of $ShowHelp = $true
+    $effectiveShowHelp = $ShowHelp
+    $effectiveVersion = $Version
+    $effectiveCommand = $Command
+    
+    if ($Command -match '^-(.+)$') {
+        $switchName = $Matches[1]
+        switch ($switchName) {
+            'ShowHelp' { $effectiveShowHelp = $true; $effectiveCommand = $null }
+            'Help' { $effectiveShowHelp = $true; $effectiveCommand = $null }
+            'h' { $effectiveShowHelp = $true; $effectiveCommand = $null }
+            'Version' { $effectiveVersion = $true; $effectiveCommand = $null }
+            'v' { $effectiveVersion = $true; $effectiveCommand = $null }
+        }
+    }
+    
     # Handle version flag
-    if ($Version) {
+    if ($effectiveVersion) {
         Show-Version
         return
     }
     
     # Handle help flag
-    if ($ShowHelp -and -not $Command) {
+    if ($effectiveShowHelp -and -not $effectiveCommand) {
         Show-MainHelp
         return
     }
     
     # If command specified, route to it
-    if ($Command) {
+    if ($effectiveCommand) {
         $validCommands = @("clean", "uninstall", "analyze", "status", "optimize", "purge")
         
-        if ($Command -in $validCommands) {
-            Invoke-Command -CommandName $Command -Arguments $CommandArgs
+        if ($effectiveCommand -in $validCommands) {
+            Invoke-MoleCommand -CommandName $effectiveCommand -Arguments $CommandArgs
         }
         else {
-            Write-Error "Unknown command: $Command"
+            Write-Error "Unknown command: $effectiveCommand"
             Write-Host ""
             Write-Host "Available commands: $($validCommands -join ', ')"
             Write-Host "Run 'mole -ShowHelp' for more information"
@@ -239,7 +293,7 @@ function Main {
         }
         
         Clear-Host
-        Invoke-Command -CommandName $selectedCommand -Arguments @()
+        Invoke-MoleCommand -CommandName $selectedCommand -Arguments @()
         
         Write-Host ""
         Write-Host "  Press any key to continue..."

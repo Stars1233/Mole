@@ -294,9 +294,22 @@ function Install-Mole {
     }
     
     # Create launcher batch file for easier access
+    # Note: Store %~dp0 immediately to avoid issues with delayed expansion in the parse loop
     $batchContent = @"
 @echo off
-powershell.exe -ExecutionPolicy Bypass -NoLogo -File "%~dp0mole.ps1" %*
+setlocal EnableDelayedExpansion
+
+rem Store the script directory immediately before any shifting
+set "MOLE_DIR=%~dp0"
+
+set "ARGS="
+:parse
+if "%~1"=="" goto run
+set "ARGS=!ARGS! '%~1'"
+shift
+goto parse
+:run
+powershell.exe -ExecutionPolicy Bypass -NoLogo -NoProfile -Command "& '%MOLE_DIR%mole.ps1' !ARGS!"
 "@
     $batchPath = Join-Path $InstallDir "mole.cmd"
     Set-Content -Path $batchPath -Value $batchContent -Encoding ASCII

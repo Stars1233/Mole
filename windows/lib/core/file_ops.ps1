@@ -17,7 +17,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Global State
 # ============================================================================
 
-$script:DryRun = $env:MOLE_DRY_RUN -eq "1"
+$script:MoleDryRunMode = $env:MOLE_DRY_RUN -eq "1"
 $script:TotalSizeCleaned = 0
 $script:FilesCleaned = 0
 $script:TotalItems = 0
@@ -153,7 +153,7 @@ function Remove-SafeItem {
     $sizeHuman = Format-ByteSize -Bytes $size
     
     # Handle dry run
-    if ($script:DryRun) {
+    if ($script:MoleDryRunMode) {
         $name = if ($Description) { $Description } else { Split-Path -Leaf $Path }
         Write-DryRun "$name $($script:Colors.Yellow)($sizeHuman dry)$($script:Colors.NC)"
         Set-SectionActivity
@@ -216,7 +216,7 @@ function Remove-SafeItems {
         
         $size = Get-PathSize -Path $path
         
-        if ($script:DryRun) {
+        if ($script:MoleDryRunMode) {
             $totalSize += $size
             $removedCount++
             continue
@@ -243,7 +243,7 @@ function Remove-SafeItems {
         $sizeKB = [Math]::Ceiling($totalSize / 1024)
         $sizeHuman = Format-ByteSize -Bytes $totalSize
         
-        if ($script:DryRun) {
+        if ($script:MoleDryRunMode) {
             Write-DryRun "$Description $($script:Colors.Yellow)($removedCount items, $sizeHuman dry)$($script:Colors.NC)"
         }
         else {
@@ -330,7 +330,7 @@ function Remove-EmptyDirectories {
         
         foreach ($dir in $emptyDirs) {
             if (Test-SafePath -Path $dir.FullName) {
-                if (-not $script:DryRun) {
+                if (-not $script:MoleDryRunMode) {
                     try {
                         Remove-Item -Path $dir.FullName -Force -ErrorAction Stop
                         $removedCount++
@@ -347,7 +347,7 @@ function Remove-EmptyDirectories {
     }
     
     if ($removedCount -gt 0) {
-        if ($script:DryRun) {
+        if ($script:MoleDryRunMode) {
             Write-DryRun "$Description $($script:Colors.Yellow)($removedCount dirs dry)$($script:Colors.NC)"
         }
         else {
@@ -422,7 +422,7 @@ function Set-DryRunMode {
         Enable or disable dry-run mode
     #>
     param([bool]$Enabled)
-    $script:DryRun = $Enabled
+    $script:MoleDryRunMode = $Enabled
 }
 
 function Test-DryRunMode {
@@ -430,7 +430,7 @@ function Test-DryRunMode {
     .SYNOPSIS
         Check if dry-run mode is enabled
     #>
-    return $script:DryRun
+    return $script:MoleDryRunMode
 }
 
 # ============================================================================
