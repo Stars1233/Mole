@@ -47,6 +47,7 @@ tests/tmp-*
 .kiro/
 CLAUDE.md
 GEMINI.md
+ANTIGRAVITY.md
 .cursorrules
 
 # Go build artifacts (development)

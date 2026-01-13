@@ -35,12 +35,14 @@ Before any operation:
 - Validate syntax before suggesting changes: `bash -n <file>`
 - Use `gh` CLI for all GitHub operations (issues, PRs, releases, etc.)
 - Never commit code unless explicitly requested by user
+- Review and update `SECURITY_AUDIT.md` when modifying `clean` or `optimize` logic
 
 ---
 
 ## Quick Reference
 
 ### Build Commands
+
 ```bash
 # Build Go binaries for current platform
 make build
@@ -54,6 +56,7 @@ make clean
 ```
 
 ### Test Commands
+
 ```bash
 # Run full test suite (recommended before commits)
 ./scripts/test.sh
@@ -79,6 +82,7 @@ shellcheck --rcfile .shellcheckrc lib/**/*.sh bin/**/*.sh
 ```
 
 ### Development Commands
+
 ```bash
 # Test cleanup in dry-run mode
 MO_DRY_RUN=1 ./mole clean
@@ -108,11 +112,17 @@ mole/                      # Main CLI entrypoint (menu + routing)
 │   ├── purge.sh           # Aggressive cleanup mode
 │   ├── touchid.sh         # Touch ID sudo enabler
 │   ├── analyze.sh         # Disk usage explorer wrapper
-│   └── status.sh          # System health dashboard wrapper
+│   ├── status.sh          # System health dashboard wrapper
+│   ├── installer.sh       # Core installation logic
+│   └── completion.sh      # Shell completion support
 ├── lib/                   # Reusable shell logic
 │   ├── core/              # base.sh, log.sh, sudo.sh, ui.sh
-│   ├── clean/             # Cleanup modules (user, apps, dev, caches, system)
-│   └── ui/                # Confirmation dialogs, progress bars
+│   ├── clean/             # Cleanup modules (user, apps, brew, system...)
+│   ├── optimize/          # Optimization modules
+│   ├── check/             # Health check modules
+│   ├── manage/            # Management utilities
+│   ├── ui/                # UI components (balloons, spinners)
+│   └── uninstall/         # Uninstallation logic
 ├── cmd/                   # Go applications
 │   ├── analyze/           # Disk analysis tool
 │   └── status/            # Real-time monitoring
@@ -130,6 +140,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 - Tests → `tests/<test>.bats`
 
 ### Language Stack
+
 - **Shell (Bash 3.2)**: Core cleanup and system operations (`lib/`, `bin/`)
 - **Go**: Performance-critical tools (`cmd/analyze/`, `cmd/status/`)
 - **BATS**: Integration testing (`tests/`)
@@ -139,6 +150,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## Code Style Guidelines
 
 ### Shell Scripts
+
 - **Indentation**: 4 spaces (configured in .editorconfig)
 - **Variables**: `lowercase_with_underscores`
 - **Functions**: `verb_noun` format (e.g., `clean_caches`, `get_size`)
@@ -149,12 +161,14 @@ mole/                      # Main CLI entrypoint (menu + routing)
 - **Error handling**: Use `set -euo pipefail` at top of files
 
 ### Go Code
+
 - **Formatting**: Follow standard Go conventions (`gofmt`, `go vet`)
 - **Package docs**: Add package-level documentation for exported functions
 - **Error handling**: Never ignore errors, always handle them explicitly
 - **Build tags**: Use `//go:build darwin` for macOS-specific code
 
 ### Comments
+
 - **Language**: English only
 - **Focus**: Explain "why" not "what" (code should be self-documenting)
 - **Safety**: Document safety boundaries explicitly
@@ -165,12 +179,14 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## Key Helper Functions
 
 ### Safety Helpers (lib/core/base.sh)
+
 - `safe_rm <path>`: Safe deletion with validation
 - `safe_find_delete <base> <pattern> <days> <type>`: Protected find+delete
 - `is_protected <path>`: Check if path is system-protected
 - `is_whitelisted <name>`: Check user whitelist
 
 ### Logging (lib/core/log.sh)
+
 - `log_info <msg>`: Informational messages
 - `log_success <msg>`: Success notifications
 - `log_warn <msg>`: Warnings
@@ -178,6 +194,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 - `debug <msg>`: Debug output (requires MO_DEBUG=1)
 
 ### UI Helpers (lib/core/ui.sh)
+
 - `confirm <prompt>`: Yes/no confirmation
 - `show_progress <current> <total> <msg>`: Progress display
 
@@ -186,6 +203,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## Testing Strategy
 
 ### Test Types
+
 1. **Syntax Validation**: `bash -n <file>` - catches basic errors
 2. **Unit Tests**: BATS tests for individual functions
 3. **Integration Tests**: Full command execution with BATS
@@ -193,6 +211,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 5. **Go Tests**: `go test -v ./cmd/...`
 
 ### Test Environment Variables
+
 - `MO_DRY_RUN=1`: Preview changes without execution
 - `MO_DEBUG=1`: Enable detailed debug logging
 - `BATS_FORMATTER=pretty`: Use pretty output for BATS (default)
@@ -203,6 +222,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## Common Development Tasks
 
 ### Adding New Cleanup Module
+
 1. Create `lib/clean/new_module.sh`
 2. Implement cleanup logic using `safe_*` helpers
 3. Source it in `bin/clean.sh`
@@ -211,6 +231,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 6. Test with `MO_DRY_RUN=1` first
 
 ### Modifying Go Tools
+
 1. Navigate to `cmd/<tool>/`
 2. Make changes to Go files
 3. Test with `go run .` or `make build && ./bin/<tool>-go`
@@ -218,6 +239,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 5. Check integration: `./mole <command>`
 
 ### Debugging Issues
+
 1. Enable debug mode: `MO_DEBUG=1 ./mole clean`
 2. Check logs for error messages
 3. Verify sudo permissions: `sudo -n true` or `./mole touchid`
@@ -229,15 +251,18 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## Linting and Quality
 
 ### Shell Script Linting
+
 - **Tool**: shellcheck with custom `.shellcheckrc`
 - **Disabled rules**: SC2155, SC2034, SC2059, SC1091, SC2038
 - **Command**: `shellcheck --rcfile .shellcheckrc lib/**/*.sh bin/**/*.sh`
 
 ### Go Code Quality
+
 - **Tools**: `go vet`, `go fmt`, `go test`
 - **Command**: `go vet ./cmd/... && go test ./cmd/...`
 
 ### CI/CD Pipeline
+
 - **Triggers**: Push/PR to main, dev branches
 - **Platforms**: macOS 14, macOS 15
 - **Tools**: bats-core, shellcheck, Go 1.24.6
@@ -248,12 +273,14 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ## File Organization Patterns
 
 ### Shell Modules
+
 - Entry scripts in `bin/` should be thin wrappers
 - Reusable logic goes in `lib/`
 - Core utilities in `lib/core/`
 - Feature-specific modules in `lib/clean/`, `lib/ui/`, etc.
 
 ### Go Packages
+
 - Each tool in its own `cmd/<tool>/` directory
 - Main entry point in `main.go`
 - Use standard Go project layout
@@ -266,6 +293,7 @@ mole/                      # Main CLI entrypoint (menu + routing)
 ### Use gh CLI for All GitHub Work
 
 **Preferred Commands**:
+
 ```bash
 # Issues
 gh issue view 123              # View issue details
@@ -286,6 +314,7 @@ gh api repos/owner/repo/issues # Raw API access
 ```
 
 **NEVER use raw git commands for GitHub operations** when `gh` is available:
+
 - ❌ `git log --oneline origin/main..HEAD` → ✅ `gh pr view`
 - ❌ `git remote get-url origin` → ✅ `gh repo view`
 - ❌ Manual GitHub API curl commands → ✅ `gh api`
@@ -293,12 +322,14 @@ gh api repos/owner/repo/issues # Raw API access
 ## Error Handling Patterns
 
 ### Shell Scripts
+
 - Use `set -euo pipefail` for strict error handling
 - Check command exit codes: `if command; then ...`
 - Provide meaningful error messages with `log_error`
 - Use cleanup traps for temporary resources
 
 ### Go Code
+
 - Never ignore errors: `if err != nil { return err }`
 - Use structured error messages
 - Handle context cancellation appropriately
@@ -309,12 +340,14 @@ gh api repos/owner/repo/issues # Raw API access
 ## Performance Considerations
 
 ### Shell Optimization
+
 - Use built-in shell operations over external commands
 - Prefer `find -delete` over `-exec rm`
 - Minimize subprocess creation
 - Use appropriate timeout mechanisms
 
 ### Go Optimization
+
 - Use concurrency for I/O-bound operations
 - Implement proper caching for expensive operations
 - Profile memory usage in scanning operations
@@ -325,12 +358,14 @@ gh api repos/owner/repo/issues # Raw API access
 ## Security Best Practices
 
 ### Path Validation
+
 - Always validate user-provided paths
 - Check against protection lists before operations
 - Use absolute paths to prevent directory traversal
 - Implement proper sandboxing for destructive operations
 
 ### Permission Management
+
 - Request sudo only when necessary
 - Use `sudo -n true` to check sudo availability
 - Implement proper Touch ID integration
