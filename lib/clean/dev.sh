@@ -77,12 +77,12 @@ clean_dev_rust() {
 }
 
 # Helper: Check for multiple versions in a directory.
-# Args: $1=directory, $2=tool_name, $3+=additional_lines
+# Args: $1=directory, $2=tool_name, $3=list_command, $4=remove_command
 check_multiple_versions() {
     local dir="$1"
     local tool_name="$2"
-    shift 2
-    local -a additional_lines=("$@")
+    local list_cmd="${3:-}"
+    local remove_cmd="${4:-}"
 
     if [[ ! -d "$dir" ]]; then
         return 0
@@ -93,10 +93,11 @@ check_multiple_versions() {
 
     if [[ "$count" -gt 1 ]]; then
         note_activity
-        echo -e "  Found ${GREEN}${count}${NC} ${tool_name}"
-        for line in "${additional_lines[@]}"; do
-            echo -e "  $line"
-        done
+        local hint=""
+        if [[ -n "$list_cmd" ]]; then
+            hint=" · ${GRAY}${list_cmd}${NC}"
+        fi
+        echo -e "  ${YELLOW}${ICON_WARNING}${NC} ${tool_name}: ${count} found${hint}"
     fi
 }
 
@@ -107,8 +108,7 @@ check_rust_toolchains() {
     check_multiple_versions \
         "$HOME/.rustup/toolchains" \
         "Rust toolchains" \
-        "You can list them with: ${GRAY}rustup toolchain list${NC}" \
-        "Remove unused with: ${GRAY}rustup toolchain uninstall <name>${NC}"
+        "rustup toolchain list"
 }
 # Docker caches (guarded by daemon check).
 clean_dev_docker() {
@@ -170,8 +170,7 @@ check_android_ndk() {
     check_multiple_versions \
         "$HOME/Library/Android/sdk/ndk" \
         "Android NDK versions" \
-        "Manage in: ${GRAY}Android Studio → SDK Manager${NC}" \
-        "Or manually at: ${GRAY}\$HOME/Library/Android/sdk/ndk${NC}"
+        "Android Studio → SDK Manager"
 }
 
 clean_dev_mobile() {
