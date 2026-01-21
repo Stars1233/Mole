@@ -1,7 +1,7 @@
 package main
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -61,7 +61,7 @@ func TestRingBuffer_AddWithinCapacity(t *testing.T) {
 	got := rb.Slice()
 	want := []float64{1.0, 2.0, 3.0}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Slice() = %v, want %v", got, want)
 	}
 }
@@ -81,7 +81,7 @@ func TestRingBuffer_ExactCapacity(t *testing.T) {
 	got := rb.Slice()
 	want := []float64{1.0, 2.0, 3.0, 4.0, 5.0}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Slice() = %v, want %v", got, want)
 	}
 }
@@ -109,7 +109,7 @@ func TestRingBuffer_WrapAround(t *testing.T) {
 	// Should return chronological order: oldest (3) to newest (7)
 	want := []float64{3.0, 4.0, 5.0, 6.0, 7.0}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Slice() = %v, want %v", got, want)
 	}
 }
@@ -126,7 +126,7 @@ func TestRingBuffer_MultipleWrapArounds(t *testing.T) {
 	// Should have the last 3 values: 8, 9, 10
 	want := []float64{8.0, 9.0, 10.0}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Slice() after 10 adds to cap-3 buffer = %v, want %v", got, want)
 	}
 }
@@ -135,13 +135,13 @@ func TestRingBuffer_SingleElementBuffer(t *testing.T) {
 	rb := NewRingBuffer(1)
 
 	rb.Add(5.0)
-	if got := rb.Slice(); !reflect.DeepEqual(got, []float64{5.0}) {
+	if got := rb.Slice(); !slices.Equal(got, []float64{5.0}) {
 		t.Errorf("Slice() = %v, want [5.0]", got)
 	}
 
 	// Overwrite the single element
 	rb.Add(10.0)
-	if got := rb.Slice(); !reflect.DeepEqual(got, []float64{10.0}) {
+	if got := rb.Slice(); !slices.Equal(got, []float64{10.0}) {
 		t.Errorf("Slice() after overwrite = %v, want [10.0]", got)
 	}
 }
@@ -169,13 +169,13 @@ func TestRingBuffer_NegativeAndZeroValues(t *testing.T) {
 	// Test that negative and zero values are handled correctly
 	rb.Add(-5.0)
 	rb.Add(0.0)
-	rb.Add(-0.0) // Negative zero should work same as zero
+	rb.Add(0.0)
 	rb.Add(3.5)
 
 	got := rb.Slice()
 	want := []float64{-5.0, 0.0, 0.0, 3.5}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Slice() with negative/zero values = %v, want %v", got, want)
 	}
 }
