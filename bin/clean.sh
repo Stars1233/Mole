@@ -69,10 +69,10 @@ if [[ -f "$HOME/.config/mole/whitelist" ]]; then
         fi
 
         case "$line" in
-            / | /System | /System/* | /bin | /bin/* | /sbin | /sbin/* | /usr/bin | /usr/bin/* | /usr/sbin | /usr/sbin/* | /etc | /etc/* | /var/db | /var/db/*)
-                WHITELIST_WARNINGS+=("Protected system path: $line")
-                continue
-                ;;
+        / | /System | /System/* | /bin | /bin/* | /sbin | /sbin/* | /usr/bin | /usr/bin/* | /usr/sbin | /usr/sbin/* | /etc | /etc/* | /var/db | /var/db/*)
+            WHITELIST_WARNINGS+=("Protected system path: $line")
+            continue
+            ;;
         esac
 
         duplicate="false"
@@ -86,7 +86,7 @@ if [[ -f "$HOME/.config/mole/whitelist" ]]; then
         fi
         [[ "$duplicate" == "true" ]] && continue
         WHITELIST_PATTERNS+=("$line")
-    done < "$HOME/.config/mole/whitelist"
+    done <"$HOME/.config/mole/whitelist"
 else
     WHITELIST_PATTERNS=("${DEFAULT_WHITELIST_PATTERNS[@]}")
 fi
@@ -140,7 +140,7 @@ cleanup() {
     fi
     CLEANUP_DONE=true
 
-    stop_inline_spinner 2> /dev/null || true
+    stop_inline_spinner 2>/dev/null || true
 
     if [[ -t 1 ]]; then
         printf "\r\033[K" >&2 || true
@@ -166,8 +166,8 @@ start_section() {
 
     if [[ "$DRY_RUN" == "true" ]]; then
         ensure_user_file "$EXPORT_LIST_FILE"
-        echo "" >> "$EXPORT_LIST_FILE"
-        echo "=== $1 ===" >> "$EXPORT_LIST_FILE"
+        echo "" >>"$EXPORT_LIST_FILE"
+        echo "=== $1 ===" >>"$EXPORT_LIST_FILE"
     fi
 }
 
@@ -220,7 +220,7 @@ normalize_paths_for_cleanup() {
             done
         fi
         [[ "$is_child" == "true" ]] || result_paths+=("$path")
-    done <<< "$sorted_paths"
+    done <<<"$sorted_paths"
 
     if [[ ${#result_paths[@]} -gt 0 ]]; then
         printf '%s\n' "${result_paths[@]}"
@@ -232,9 +232,9 @@ get_cleanup_path_size_kb() {
     local path="$1"
 
     if [[ -f "$path" && ! -L "$path" ]]; then
-        if command -v stat > /dev/null 2>&1; then
+        if command -v stat >/dev/null 2>&1; then
             local bytes
-            bytes=$(stat -f%z "$path" 2> /dev/null || echo "0")
+            bytes=$(stat -f%z "$path" 2>/dev/null || echo "0")
             if [[ "$bytes" =~ ^[0-9]+$ && "$bytes" -gt 0 ]]; then
                 echo $(((bytes + 1023) / 1024))
                 return 0
@@ -243,9 +243,9 @@ get_cleanup_path_size_kb() {
     fi
 
     if [[ -L "$path" ]]; then
-        if command -v stat > /dev/null 2>&1; then
+        if command -v stat >/dev/null 2>&1; then
             local bytes
-            bytes=$(stat -f%z "$path" 2> /dev/null || echo "0")
+            bytes=$(stat -f%z "$path" 2>/dev/null || echo "0")
             if [[ "$bytes" =~ ^[0-9]+$ && "$bytes" -gt 0 ]]; then
                 echo $(((bytes + 1023) / 1024))
             else
@@ -433,6 +433,8 @@ safe_clean() {
         if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Scanning items..."; fi
     fi
 
+    local cleaning_spinner_started=false
+
     # For larger batches, precompute sizes in parallel for better UX/stat accuracy.
     if [[ ${#existing_paths[@]} -gt 3 ]]; then
         local temp_dir
@@ -463,9 +465,9 @@ safe_clean() {
                 [[ ! "$size" =~ ^[0-9]+$ ]] && size=0
 
                 if [[ "$size" -gt 0 ]]; then
-                    echo "$size 1" > "$temp_dir/result_${idx}"
+                    echo "$size 1" >"$temp_dir/result_${idx}"
                 else
-                    echo "0 0" > "$temp_dir/result_${idx}"
+                    echo "0 0" >"$temp_dir/result_${idx}"
                 fi
 
                 ((idx++))
@@ -490,17 +492,17 @@ safe_clean() {
                         [[ ! "$size" =~ ^[0-9]+$ ]] && size=0
                         local tmp_file="$temp_dir/result_${idx}.$$"
                         if [[ "$size" -gt 0 ]]; then
-                            echo "$size 1" > "$tmp_file"
+                            echo "$size 1" >"$tmp_file"
                         else
-                            echo "0 0" > "$tmp_file"
+                            echo "0 0" >"$tmp_file"
                         fi
-                        mv "$tmp_file" "$temp_dir/result_${idx}" 2> /dev/null || true
+                        mv "$tmp_file" "$temp_dir/result_${idx}" 2>/dev/null || true
                     ) &
                     pids+=($!)
                     ((idx++))
 
                     if ((${#pids[@]} >= MOLE_MAX_PARALLEL_JOBS)); then
-                        wait "${pids[0]}" 2> /dev/null || true
+                        wait "${pids[0]}" 2>/dev/null || true
                         pids=("${pids[@]:1}")
                         ((completed++))
 
@@ -513,7 +515,7 @@ safe_clean() {
 
             if [[ ${#pids[@]} -gt 0 ]]; then
                 for pid in "${pids[@]}"; do
-                    wait "$pid" 2> /dev/null || true
+                    wait "$pid" 2>/dev/null || true
                     ((completed++))
 
                     if [[ "$show_spinner" == "true" && -t 1 ]]; then
@@ -527,17 +529,18 @@ safe_clean() {
         # Start spinner for cleaning phase
         if [[ "$DRY_RUN" != "true" && ${#existing_paths[@]} -gt 0 && -t 1 ]]; then
             MOLE_SPINNER_PREFIX="  " start_inline_spinner "Cleaning..."
+            cleaning_spinner_started=true
         fi
         idx=0
         if [[ ${#existing_paths[@]} -gt 0 ]]; then
             for path in "${existing_paths[@]}"; do
                 local result_file="$temp_dir/result_${idx}"
                 if [[ -f "$result_file" ]]; then
-                    read -r size count < "$result_file" 2> /dev/null || true
+                    read -r size count <"$result_file" 2>/dev/null || true
                     local removed=0
                     if [[ "$DRY_RUN" != "true" ]]; then
                         if [[ -L "$path" ]]; then
-                            rm "$path" 2> /dev/null && removed=1
+                            rm "$path" 2>/dev/null && removed=1
                         else
                             if safe_remove "$path" true; then
                                 removed=1
@@ -567,6 +570,7 @@ safe_clean() {
         # Start spinner for cleaning phase (small batch)
         if [[ "$DRY_RUN" != "true" && ${#existing_paths[@]} -gt 0 && -t 1 ]]; then
             MOLE_SPINNER_PREFIX="  " start_inline_spinner "Cleaning..."
+            cleaning_spinner_started=true
         fi
         local idx=0
         if [[ ${#existing_paths[@]} -gt 0 ]]; then
@@ -578,7 +582,7 @@ safe_clean() {
                 local removed=0
                 if [[ "$DRY_RUN" != "true" ]]; then
                     if [[ -L "$path" ]]; then
-                        rm "$path" 2> /dev/null && removed=1
+                        rm "$path" 2>/dev/null && removed=1
                     else
                         if safe_remove "$path" true; then
                             removed=1
@@ -604,7 +608,7 @@ safe_clean() {
         fi
     fi
 
-    if [[ "$show_spinner" == "true" ]]; then
+    if [[ "$show_spinner" == "true" || "$cleaning_spinner_started" == "true" ]]; then
         stop_section_spinner
     fi
 
@@ -639,9 +643,9 @@ safe_clean() {
                     local size=0
 
                     if [[ -n "${temp_dir:-}" && -f "$temp_dir/result_${idx}" ]]; then
-                        read -r size count < "$temp_dir/result_${idx}" 2> /dev/null || true
+                        read -r size count <"$temp_dir/result_${idx}" 2>/dev/null || true
                     else
-                        size=$(get_cleanup_path_size_kb "$path" 2> /dev/null || echo "0")
+                        size=$(get_cleanup_path_size_kb "$path" 2>/dev/null || echo "0")
                     fi
 
                     [[ "$size" == "0" || -z "$size" ]] && {
@@ -649,7 +653,7 @@ safe_clean() {
                         continue
                     }
 
-                    echo "$(dirname "$path")|$size|$path" >> "$paths_temp"
+                    echo "$(dirname "$path")|$size|$path" >>"$paths_temp"
                     ((idx++))
                 done
             fi
@@ -680,9 +684,9 @@ safe_clean() {
                 ' | while IFS='|' read -r display_path total_size child_count; do
                     local size_human=$(bytes_to_human "$((total_size * 1024))")
                     if [[ $child_count -gt 1 ]]; then
-                        echo "$display_path  # $size_human, $child_count items" >> "$EXPORT_LIST_FILE"
+                        echo "$display_path  # $size_human, $child_count items" >>"$EXPORT_LIST_FILE"
                     else
-                        echo "$display_path  # $size_human" >> "$EXPORT_LIST_FILE"
+                        echo "$display_path  # $size_human" >>"$EXPORT_LIST_FILE"
                     fi
                 done
 
@@ -722,7 +726,7 @@ start_cleanup() {
         SYSTEM_CLEAN=false
 
         ensure_user_file "$EXPORT_LIST_FILE"
-        cat > "$EXPORT_LIST_FILE" << EOF
+        cat >"$EXPORT_LIST_FILE" <<EOF
 # Mole Cleanup Preview - $(date '+%Y-%m-%d %H:%M:%S')
 #
 # How to protect files:
@@ -738,7 +742,7 @@ EOF
     fi
 
     if [[ -t 0 ]]; then
-        if sudo -n true 2> /dev/null; then
+        if sudo -n true 2>/dev/null; then
             SYSTEM_CLEAN=true
             echo -e "${GREEN}${ICON_SUCCESS}${NC} Admin access already available"
             echo ""
@@ -778,7 +782,7 @@ EOF
     else
         echo ""
         echo "Running in non-interactive mode"
-        if sudo -n true 2> /dev/null; then
+        if sudo -n true 2>/dev/null; then
             SYSTEM_CLEAN=true
             echo "  ${ICON_LIST} System-level cleanup enabled, sudo session active"
         else
@@ -1029,7 +1033,7 @@ perform_cleanup() {
                 echo "# Potential cleanup: ${freed_gb}GB"
                 echo "# Items: $files_cleaned"
                 echo "# Categories: $total_items"
-            } >> "$EXPORT_LIST_FILE"
+            } >>"$EXPORT_LIST_FILE"
 
             summary_details+=("Detailed file list: ${GRAY}$EXPORT_LIST_FILE${NC}")
             summary_details+=("Use ${GRAY}mo clean --whitelist${NC} to add protection rules")
@@ -1081,18 +1085,18 @@ perform_cleanup() {
 main() {
     for arg in "$@"; do
         case "$arg" in
-            "--debug")
-                export MO_DEBUG=1
-                ;;
-            "--dry-run" | "-n")
-                DRY_RUN=true
-                export MOLE_DRY_RUN=1
-                ;;
-            "--whitelist")
-                source "$SCRIPT_DIR/../lib/manage/whitelist.sh"
-                manage_whitelist "clean"
-                exit 0
-                ;;
+        "--debug")
+            export MO_DEBUG=1
+            ;;
+        "--dry-run" | "-n")
+            DRY_RUN=true
+            export MOLE_DRY_RUN=1
+            ;;
+        "--whitelist")
+            source "$SCRIPT_DIR/../lib/manage/whitelist.sh"
+            manage_whitelist "clean"
+            exit 0
+            ;;
         esac
     done
 
