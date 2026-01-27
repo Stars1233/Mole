@@ -185,8 +185,8 @@ Read    ▮▯▯▯▯  2.1 MB/s                  Health  Normal · 423 cycles
 Write   ▮▮▮▯▯  18.3 MB/s                 Temp    58°C · 1200 RPM
 
 ⇅ Network                                ▶ Processes
-Down    ▮▮▯▯▯  3.2 MB/s                  Code       ▮▮▮▮▯  42.1%
-Up      ▮▯▯▯▯  0.8 MB/s                  Chrome     ▮▮▮▯▯  28.3%
+Down    ▁▁█▂▁▁▁▁▁▁▁▁▇▆▅▂  0.54 MB/s      Code       ▮▮▮▮▯  42.1%
+Up      ▄▄▄▃▃▃▄▆▆▇█▁▁▁▁▁  0.02 MB/s      Chrome     ▮▮▮▯▯  28.3%
 Proxy   HTTP · 192.168.1.100             Terminal   ▮▯▯▯▯  12.5%
 ```
 
