@@ -670,9 +670,26 @@ find_app_files() {
 
     local -a files_to_clean=()
 
-    # Normalize app name for matching
-    local nospace_name="${app_name// /}"
-    local underscore_name="${app_name// /_}"
+    # Normalize app name for matching - generate all common naming variants
+    # Apps use inconsistent naming: "Maestro Studio" vs "maestro-studio" vs "MaestroStudio"
+    # Note: Using tr for lowercase conversion (Bash 3.2 compatible, no ${var,,} support)
+    local nospace_name="${app_name// /}"                                               # "Maestro Studio" -> "MaestroStudio"
+    local underscore_name="${app_name// /_}"                                           # "Maestro Studio" -> "Maestro_Studio"
+    local hyphen_name="${app_name// /-}"                                               # "Maestro Studio" -> "Maestro-Studio"
+    local lowercase_name=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')              # "Zed Nightly" -> "zed nightly"
+    local lowercase_nospace=$(echo "$nospace_name" | tr '[:upper:]' '[:lower:]')       # "MaestroStudio" -> "maestrostudio"
+    local lowercase_hyphen=$(echo "$hyphen_name" | tr '[:upper:]' '[:lower:]')         # "Maestro-Studio" -> "maestro-studio"
+    local lowercase_underscore=$(echo "$underscore_name" | tr '[:upper:]' '[:lower:]') # "Maestro_Studio" -> "maestro_studio"
+
+    # Extract base name by removing common version/channel suffixes
+    # "Zed Nightly" -> "Zed", "Firefox Developer Edition" -> "Firefox"
+    local base_name="$app_name"
+    local version_suffixes="Nightly|Beta|Alpha|Dev|Canary|Preview|Insider|Edge|Stable|Release|RC|LTS"
+    version_suffixes+="|Developer Edition|Technology Preview"
+    if [[ "$app_name" =~ ^(.+)[[:space:]]+(${version_suffixes})$ ]]; then
+        base_name="${BASH_REMATCH[1]}"
+    fi
+    local base_lowercase=$(echo "$base_name" | tr '[:upper:]' '[:lower:]') # "Zed" -> "zed"
 
     # Standard path patterns for user-level files
     local -a user_patterns=(
@@ -714,13 +731,35 @@ find_app_files() {
         "$HOME/.$app_name"rc
     )
 
-    # Add sanitized name variants if unique enough
+    # Add all naming variants to cover inconsistent app directory naming
+    # Issue #377: Apps create directories with various naming conventions
     if [[ ${#app_name} -gt 3 && "$app_name" =~ [[:space:]] ]]; then
         user_patterns+=(
+            # Compound naming (MaestroStudio, Maestro_Studio, Maestro-Studio)
             "$HOME/Library/Application Support/$nospace_name"
             "$HOME/Library/Caches/$nospace_name"
             "$HOME/Library/Logs/$nospace_name"
             "$HOME/Library/Application Support/$underscore_name"
+            "$HOME/Library/Application Support/$hyphen_name"
+            # Lowercase variants (maestrostudio, maestro-studio, maestro_studio)
+            "$HOME/.config/$lowercase_nospace"
+            "$HOME/.config/$lowercase_hyphen"
+            "$HOME/.config/$lowercase_underscore"
+            "$HOME/.local/share/$lowercase_nospace"
+            "$HOME/.local/share/$lowercase_hyphen"
+            "$HOME/.local/share/$lowercase_underscore"
+        )
+    fi
+
+    # Add base name variants for versioned apps (e.g., "Zed Nightly" -> check for "zed")
+    if [[ "$base_name" != "$app_name" && ${#base_name} -gt 2 ]]; then
+        user_patterns+=(
+            "$HOME/Library/Application Support/$base_name"
+            "$HOME/Library/Caches/$base_name"
+            "$HOME/Library/Logs/$base_name"
+            "$HOME/.config/$base_lowercase"
+            "$HOME/.local/share/$base_lowercase"
+            "$HOME/.$base_lowercase"
         )
     fi
 
@@ -838,8 +877,11 @@ find_app_system_files() {
     local app_name="$2"
     local -a system_files=()
 
-    # Sanitized App Name (remove spaces)
+    # Generate all naming variants (same as find_app_files for consistency)
     local nospace_name="${app_name// /}"
+    local underscore_name="${app_name// /_}"
+    local hyphen_name="${app_name// /-}"
+    local lowercase_hyphen=$(echo "$hyphen_name" | tr '[:upper:]' '[:lower:]')
 
     # Standard system path patterns
     local -a system_patterns=(
@@ -865,11 +907,16 @@ find_app_system_files() {
         "/Library/Caches/$app_name"
     )
 
+    # Add all naming variants for apps with spaces in name
     if [[ ${#app_name} -gt 3 && "$app_name" =~ [[:space:]] ]]; then
         system_patterns+=(
             "/Library/Application Support/$nospace_name"
             "/Library/Caches/$nospace_name"
             "/Library/Logs/$nospace_name"
+            "/Library/Application Support/$underscore_name"
+            "/Library/Application Support/$hyphen_name"
+            "/Library/Caches/$hyphen_name"
+            "/Library/Caches/$lowercase_hyphen"
         )
     fi
 
