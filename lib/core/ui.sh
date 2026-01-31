@@ -301,6 +301,9 @@ start_inline_spinner() {
             [[ -z "$chars" ]] && chars="|/-\\"
             local i=0
 
+            # Clear line on first output to prevent text remnants from previous messages
+            printf "\r\033[2K" >&2 || true
+
             # Cooperative exit: check for stop file instead of relying on signals
             while [[ ! -f "$stop_file" ]]; do
                 local c="${chars:$((i % ${#chars})):1}"

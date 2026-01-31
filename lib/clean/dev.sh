@@ -97,7 +97,7 @@ check_multiple_versions() {
         if [[ -n "$list_cmd" ]]; then
             hint=" · ${GRAY}${list_cmd}${NC}"
         fi
-        echo -e "  ${GRAY}${ICON_WARNING}${NC} ${tool_name}: ${count} found${hint}"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} ${tool_name}: ${count} found${hint}"
     fi
 }
 

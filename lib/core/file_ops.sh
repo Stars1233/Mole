@@ -267,7 +267,7 @@ safe_sudo_remove() {
 
             if sudo test -e "$path" 2> /dev/null; then
                 local size_kb
-                size_kb=$(sudo du -sk "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+                size_kb=$(sudo du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     file_size=$(bytes_to_human "$((size_kb * 1024))")
                 fi
@@ -297,7 +297,7 @@ safe_sudo_remove() {
     local size_human=""
     if oplog_enabled; then
         if sudo test -e "$path" 2> /dev/null; then
-            size_kb=$(sudo du -sk "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+            size_kb=$(sudo du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
             if [[ "$size_kb" =~ ^[0-9]+$ ]] && [[ "$size_kb" -gt 0 ]]; then
                 size_human=$(bytes_to_human "$((size_kb * 1024))" 2> /dev/null || echo "${size_kb}KB")
             fi
@@ -418,7 +418,7 @@ get_path_size_kb() {
     # Use || echo 0 to ensure failure in du (e.g. permission error) doesn't exit script under set -e
     # Pipefail would normally cause the pipeline to fail if du fails, but || handle catches it.
     local size
-    size=$(command du -sk "$path" 2> /dev/null | awk 'NR==1 {print $1; exit}' || true)
+    size=$(command du -skP "$path" 2> /dev/null | awk 'NR==1 {print $1; exit}' || true)
 
     # Ensure size is a valid number (fix for non-numeric du output)
     if [[ "$size" =~ ^[0-9]+$ ]]; then

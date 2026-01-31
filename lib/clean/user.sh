@@ -14,7 +14,7 @@ clean_user_essentials() {
         [[ "$trash_count" =~ ^[0-9]+$ ]] || trash_count="0"
 
         if [[ "$DRY_RUN" == "true" ]]; then
-            [[ $trash_count -gt 0 ]] && echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Trash · would empty, $trash_count items" || echo -e "  ${GRAY}${ICON_EMPTY}${NC} Trash · already empty"
+            [[ $trash_count -gt 0 ]] && echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Trash · would empty, $trash_count items" || echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Trash · already empty"
         elif [[ $trash_count -gt 0 ]]; then
             if osascript -e 'tell application "Finder" to empty trash' > /dev/null 2>&1; then
                 echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Trash · emptied, $trash_count items"
@@ -25,7 +25,7 @@ clean_user_essentials() {
                 done < <(command find "$HOME/.Trash" -mindepth 1 -maxdepth 1 -print0 2> /dev/null || true)
             fi
         else
-            echo -e "  ${GRAY}${ICON_EMPTY}${NC} Trash · already empty"
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Trash · already empty"
         fi
     fi
 }
@@ -628,7 +628,7 @@ check_ios_device_backups() {
     if [[ -d "$backup_dir" ]]; then
         local backup_kb=$(get_path_size_kb "$backup_dir")
         if [[ -n "${backup_kb:-}" && "$backup_kb" -gt 102400 ]]; then
-            local backup_human=$(command du -sh "$backup_dir" 2> /dev/null | awk '{print $1}')
+            local backup_human=$(command du -shP "$backup_dir" 2> /dev/null | awk '{print $1}')
             if [[ -n "$backup_human" ]]; then
                 note_activity
                 echo -e "  ${YELLOW}${ICON_WARNING}${NC} iOS backups: ${GREEN}${backup_human}${NC}${GRAY}, Path: $backup_dir${NC}"

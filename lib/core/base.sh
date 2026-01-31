@@ -15,7 +15,7 @@ readonly MOLE_BASE_LOADED=1
 # ============================================================================
 readonly ESC=$'\033'
 readonly GREEN="${ESC}[0;32m"
-readonly BLUE="${ESC}[0;34m"
+readonly BLUE="${ESC}[1;34m"
 readonly CYAN="${ESC}[0;36m"
 readonly YELLOW="${ESC}[0;33m"
 readonly PURPLE="${ESC}[0;35m"
@@ -626,9 +626,12 @@ start_section_spinner() {
 # Stop spinner and clear the line
 # Usage: stop_section_spinner
 stop_section_spinner() {
-    stop_inline_spinner 2> /dev/null || true
-    if [[ -t 1 ]]; then
-        echo -ne "\r\033[K" >&2 || true
+    # Only clear line if spinner was actually running
+    if [[ -n "${INLINE_SPINNER_PID:-}" ]]; then
+        stop_inline_spinner 2> /dev/null || true
+        if [[ -t 1 ]]; then
+            echo -ne "\r\033[2K" >&2 || true
+        fi
     fi
 }
 
@@ -646,7 +649,7 @@ safe_clear_lines() {
     # Clear lines one by one (more reliable than multi-line sequences)
     local i
     for ((i = 0; i < lines; i++)); do
-        printf "\033[1A\r\033[K" > "$tty_device" 2> /dev/null || return 1
+        printf "\033[1A\r\033[2K" > "$tty_device" 2> /dev/null || return 1
     done
 
     return 0
@@ -660,7 +663,7 @@ safe_clear_line() {
     # Use centralized ANSI support check
     is_ansi_supported 2> /dev/null || return 1
 
-    printf "\r\033[K" > "$tty_device" 2> /dev/null || return 1
+    printf "\r\033[2K" > "$tty_device" 2> /dev/null || return 1
     return 0
 }
 

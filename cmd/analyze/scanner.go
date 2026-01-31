@@ -119,14 +119,44 @@ func scanPathConcurrent(root string, filesScanned, dirsScanned, bytesScanned *in
 			size := getActualFileSize(fullPath, info)
 			atomic.AddInt64(&total, size)
 
-			entryChan <- dirEntry{
+			// Reuse timer to reduce GC pressure
+			timer := time.NewTimer(0)
+			// Ensure timer is drained immediately since we start with 0
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+
+			select {
+			case entryChan <- dirEntry{
 				Name:       child.Name() + " →",
 				Path:       fullPath,
 				Size:       size,
 				IsDir:      isDir,
 				LastAccess: getLastAccessTimeFromInfo(info),
+			}:
+			default:
+				// If channel is full, use timer to wait with timeout
+				timer.Reset(100 * time.Millisecond)
+				select {
+				case entryChan <- dirEntry{
+					Name:       child.Name() + " →",
+					Path:       fullPath,
+					Size:       size,
+					IsDir:      isDir,
+					LastAccess: getLastAccessTimeFromInfo(info),
+				}:
+					if !timer.Stop() {
+						<-timer.C
+					}
+				case <-timer.C:
+					// Skip if channel is blocked
+				}
 			}
 			continue
+
 		}
 
 		if child.IsDir() {
@@ -158,12 +188,19 @@ func scanPathConcurrent(root string, filesScanned, dirsScanned, bytesScanned *in
 					atomic.AddInt64(&total, size)
 					atomic.AddInt64(dirsScanned, 1)
 
-					entryChan <- dirEntry{
+					timer := time.NewTimer(100 * time.Millisecond)
+					select {
+					case entryChan <- dirEntry{
 						Name:       name,
 						Path:       path,
 						Size:       size,
 						IsDir:      true,
 						LastAccess: time.Time{},
+					}:
+						if !timer.Stop() {
+							<-timer.C
+						}
+					case <-timer.C:
 					}
 				}(child.Name(), fullPath)
 				continue
@@ -188,12 +225,19 @@ func scanPathConcurrent(root string, filesScanned, dirsScanned, bytesScanned *in
 					atomic.AddInt64(&total, size)
 					atomic.AddInt64(dirsScanned, 1)
 
-					entryChan <- dirEntry{
+					timer := time.NewTimer(100 * time.Millisecond)
+					select {
+					case entryChan <- dirEntry{
 						Name:       name,
 						Path:       path,
 						Size:       size,
 						IsDir:      true,
 						LastAccess: time.Time{},
+					}:
+						if !timer.Stop() {
+							<-timer.C
+						}
+					case <-timer.C:
 					}
 				}(child.Name(), fullPath)
 				continue
@@ -209,12 +253,19 @@ func scanPathConcurrent(root string, filesScanned, dirsScanned, bytesScanned *in
 				atomic.AddInt64(&total, size)
 				atomic.AddInt64(dirsScanned, 1)
 
-				entryChan <- dirEntry{
+				timer := time.NewTimer(100 * time.Millisecond)
+				select {
+				case entryChan <- dirEntry{
 					Name:       name,
 					Path:       path,
 					Size:       size,
 					IsDir:      true,
 					LastAccess: time.Time{},
+				}:
+					if !timer.Stop() {
+						<-timer.C
+					}
+				case <-timer.C:
 				}
 			}(child.Name(), fullPath)
 			continue
@@ -230,18 +281,35 @@ func scanPathConcurrent(root string, filesScanned, dirsScanned, bytesScanned *in
 		atomic.AddInt64(filesScanned, 1)
 		atomic.AddInt64(bytesScanned, size)
 
-		entryChan <- dirEntry{
+		// Single-use timer for main loop (less pressure than tight loop above)
+		// But let's be consistent and optimized
+		timer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case entryChan <- dirEntry{
 			Name:       child.Name(),
 			Path:       fullPath,
 			Size:       size,
 			IsDir:      false,
 			LastAccess: getLastAccessTimeFromInfo(info),
+		}:
+			if !timer.Stop() {
+				<-timer.C
+			}
+		case <-timer.C:
 		}
+
 		// Track large files only.
 		if !shouldSkipFileForLargeTracking(fullPath) {
 			minSize := atomic.LoadInt64(&largeFileMinSize)
 			if size >= minSize {
-				largeFileChan <- fileEntry{Name: child.Name(), Path: fullPath, Size: size}
+				timer.Reset(100 * time.Millisecond)
+				select {
+				case largeFileChan <- fileEntry{Name: child.Name(), Path: fullPath, Size: size}:
+					if !timer.Stop() {
+						<-timer.C
+					}
+				case <-timer.C:
+				}
 			}
 		}
 	}
@@ -451,6 +519,15 @@ func calculateDirSizeConcurrent(root string, largeFileChan chan<- fileEntry, lar
 	maxConcurrent := min(runtime.NumCPU()*2, maxDirWorkers)
 	sem := make(chan struct{}, maxConcurrent)
 
+	// Reuse timer for large file sends
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+
 	for _, child := range children {
 		fullPath := filepath.Join(root, child.Name())
 
@@ -516,7 +593,14 @@ func calculateDirSizeConcurrent(root string, largeFileChan chan<- fileEntry, lar
 		if !shouldSkipFileForLargeTracking(fullPath) && largeFileMinSize != nil {
 			minSize := atomic.LoadInt64(largeFileMinSize)
 			if size >= minSize {
-				largeFileChan <- fileEntry{Name: child.Name(), Path: fullPath, Size: size}
+				timer.Reset(100 * time.Millisecond)
+				select {
+				case largeFileChan <- fileEntry{Name: child.Name(), Path: fullPath, Size: size}:
+					if !timer.Stop() {
+						<-timer.C
+					}
+				case <-timer.C:
+				}
 			}
 		}
 
@@ -584,7 +668,7 @@ func getDirectorySizeFromDuWithExclude(path string, excludePath string) (int64, 
 		ctx, cancel := context.WithTimeout(context.Background(), duTimeout)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, "du", "-sk", target)
+		cmd := exec.CommandContext(ctx, "du", "-skP", target)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr

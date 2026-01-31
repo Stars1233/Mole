@@ -506,6 +506,7 @@ download_binary() {
     if curl -fsSL --connect-timeout 10 --max-time 60 -o "$target_path" "$url"; then
         if [[ -t 1 ]]; then stop_line_spinner; fi
         chmod +x "$target_path"
+        xattr -cr "$target_path" 2> /dev/null || true
         log_success "Downloaded ${binary_name} binary"
     else
         if [[ -t 1 ]]; then stop_line_spinner; fi

@@ -413,7 +413,7 @@ clean_orphaned_system_services() {
                     fi
                     orphaned_files+=("$plist")
                     local size_kb
-                    size_kb=$(sudo du -sk "$plist" 2> /dev/null | awk '{print $1}' || echo "0")
+                    size_kb=$(sudo du -skP "$plist" 2> /dev/null | awk '{print $1}' || echo "0")
                     ((total_orphaned_kb += size_kb))
                     ((orphaned_count++))
                     break
@@ -444,7 +444,7 @@ clean_orphaned_system_services() {
                     fi
                     orphaned_files+=("$plist")
                     local size_kb
-                    size_kb=$(sudo du -sk "$plist" 2> /dev/null | awk '{print $1}' || echo "0")
+                    size_kb=$(sudo du -skP "$plist" 2> /dev/null | awk '{print $1}' || echo "0")
                     ((total_orphaned_kb += size_kb))
                     ((orphaned_count++))
                     break
@@ -474,7 +474,7 @@ clean_orphaned_system_services() {
                     fi
                     orphaned_files+=("$helper")
                     local size_kb
-                    size_kb=$(sudo du -sk "$helper" 2> /dev/null | awk '{print $1}' || echo "0")
+                    size_kb=$(sudo du -skP "$helper" 2> /dev/null | awk '{print $1}' || echo "0")
                     ((total_orphaned_kb += size_kb))
                     ((orphaned_count++))
                     break

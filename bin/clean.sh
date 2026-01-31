@@ -142,10 +142,6 @@ cleanup() {
 
     stop_inline_spinner 2> /dev/null || true
 
-    if [[ -t 1 ]]; then
-        printf "\r\033[K" >&2 || true
-    fi
-
     cleanup_temp_files
 
     stop_sudo_session
@@ -601,7 +597,7 @@ safe_clean() {
     fi
 
     if [[ "$show_spinner" == "true" || "$cleaning_spinner_started" == "true" ]]; then
-        stop_section_spinner
+        stop_inline_spinner
     fi
 
     local permission_end=${MOLE_PERMISSION_DENIED_COUNT:-0}

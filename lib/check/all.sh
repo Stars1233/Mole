@@ -422,8 +422,11 @@ get_macos_update_labels() {
 # ============================================================================
 
 check_disk_space() {
-    local free_gb=$(command df -H / | awk 'NR==2 {print $4}' | sed 's/G//')
-    local free_num=$(echo "$free_gb" | tr -d 'G' | cut -d'.' -f1)
+    # Use df -k to get KB values (always numeric), then calculate GB via math
+    # This avoids unit suffix parsing issues (df -H can return MB or GB)
+    local free_kb=$(command df -k / | awk 'NR==2 {print $4}')
+    local free_gb=$(awk "BEGIN {printf \"%.1f\", $free_kb / 1048576}")
+    local free_num=$(awk "BEGIN {printf \"%d\", $free_kb / 1048576}")
 
     export DISK_FREE_GB=$free_num
 

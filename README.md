@@ -274,13 +274,9 @@ Real feedback from users who shared Mole on X.
 
 - If Mole helped you, star the repo or [share it](https://twitter.com/intent/tweet?url=https://github.com/tw93/Mole&text=Mole%20-%20Deep%20clean%20and%20optimize%20your%20Mac.) with friends.
 - Got ideas or found bugs? Check the [Contributing Guide](CONTRIBUTING.md) and open an issue or PR.
-- Like Mole? <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">Buy Tw93 a Coke</a> to support the project! 🥤
+- Like Mole? <a href="https://miaoyan.app/cats.html?name=Mole" target="_blank">Buy Tw93 a Coke</a> to support the project! 🥤 Supporters below.
 
-<details>
-<summary><strong>Friends who bought me Coke</strong></summary>
-<br/>
-<a href="https://miaoyan.app/cats.html?name=Mole"><img src="https://miaoyan.app/assets/sponsors.svg" width="1000" /></a>
-</details>
+<a href="https://miaoyan.app/cats.html?name=Mole"><img src="https://miaoyan.app/assets/sponsors.svg" width="1000" loading="lazy" /></a>
 
 ## License
 

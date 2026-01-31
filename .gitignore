@@ -69,5 +69,10 @@ tests/tmp-*/
 tests/*.tmp
 tests/*.log
 
+# Go test coverage files
+*.out
+coverage.out
+coverage.html
+
 session.json
 run_tests.ps1

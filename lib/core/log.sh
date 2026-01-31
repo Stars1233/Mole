@@ -44,17 +44,25 @@ rotate_log_once() {
     export MOLE_LOG_ROTATED=1
 
     local max_size="$LOG_MAX_SIZE_DEFAULT"
-    if [[ -f "$LOG_FILE" ]] && [[ $(get_file_size "$LOG_FILE") -gt "$max_size" ]]; then
-        mv "$LOG_FILE" "${LOG_FILE}.old" 2> /dev/null || true
-        ensure_user_file "$LOG_FILE"
+    if [[ -f "$LOG_FILE" ]]; then
+        local size
+        size=$(get_file_size "$LOG_FILE")
+        if [[ "$size" -gt "$max_size" ]]; then
+            mv "$LOG_FILE" "${LOG_FILE}.old" 2> /dev/null || true
+            ensure_user_file "$LOG_FILE"
+        fi
     fi
 
     # Rotate operations log (5MB limit)
     if [[ "${MO_NO_OPLOG:-}" != "1" ]]; then
         local oplog_max_size="$OPLOG_MAX_SIZE_DEFAULT"
-        if [[ -f "$OPERATIONS_LOG_FILE" ]] && [[ $(get_file_size "$OPERATIONS_LOG_FILE") -gt "$oplog_max_size" ]]; then
-            mv "$OPERATIONS_LOG_FILE" "${OPERATIONS_LOG_FILE}.old" 2> /dev/null || true
-            ensure_user_file "$OPERATIONS_LOG_FILE"
+        if [[ -f "$OPERATIONS_LOG_FILE" ]]; then
+            local size
+            size=$(get_file_size "$OPERATIONS_LOG_FILE")
+            if [[ "$size" -gt "$oplog_max_size" ]]; then
+                mv "$OPERATIONS_LOG_FILE" "${OPERATIONS_LOG_FILE}.old" 2> /dev/null || true
+                ensure_user_file "$OPERATIONS_LOG_FILE"
+            fi
         fi
     fi
 }
@@ -63,10 +71,16 @@ rotate_log_once() {
 # Logging Functions
 # ============================================================================
 
+# Get current timestamp (centralized for consistency)
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
 # Log informational message
 log_info() {
     echo -e "${BLUE}$1${NC}"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(get_timestamp)
     echo "[$timestamp] INFO: $1" >> "$LOG_FILE" 2> /dev/null || true
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         echo "[$timestamp] INFO: $1" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
@@ -76,38 +90,43 @@ log_info() {
 # Log success message
 log_success() {
     echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(get_timestamp)
     echo "[$timestamp] SUCCESS: $1" >> "$LOG_FILE" 2> /dev/null || true
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         echo "[$timestamp] SUCCESS: $1" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
     fi
 }
 
-# Log warning message
+# shellcheck disable=SC2329
 log_warning() {
     echo -e "${YELLOW}$1${NC}"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(get_timestamp)
     echo "[$timestamp] WARNING: $1" >> "$LOG_FILE" 2> /dev/null || true
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         echo "[$timestamp] WARNING: $1" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
     fi
 }
 
-# Log error message
+# shellcheck disable=SC2329
 log_error() {
     echo -e "${YELLOW}${ICON_ERROR}${NC} $1" >&2
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(get_timestamp)
     echo "[$timestamp] ERROR: $1" >> "$LOG_FILE" 2> /dev/null || true
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         echo "[$timestamp] ERROR: $1" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
     fi
 }
 
-# Debug logging (active when MO_DEBUG=1)
+# shellcheck disable=SC2329
 debug_log() {
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         echo -e "${GRAY}[DEBUG]${NC} $*" >&2
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] DEBUG: $*" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
+        local timestamp
+        timestamp=$(get_timestamp)
+        echo "[$timestamp] DEBUG: $*" >> "$DEBUG_LOG_FILE" 2> /dev/null || true
     fi
 }
 
@@ -139,7 +158,7 @@ log_operation() {
     [[ -z "$path" ]] && return 0
 
     local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    timestamp=$(get_timestamp)
 
     local log_line="[$timestamp] [$command] $action $path"
     [[ -n "$detail" ]] && log_line+=" ($detail)"
@@ -154,7 +173,7 @@ log_operation_session_start() {
 
     local command="${1:-mole}"
     local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    timestamp=$(get_timestamp)
 
     {
         echo ""
@@ -162,8 +181,7 @@ log_operation_session_start() {
     } >> "$OPERATIONS_LOG_FILE" 2> /dev/null || true
 }
 
-# Log session end with summary
-# Usage: log_operation_session_end <command> <items_count> <total_size>
+# shellcheck disable=SC2329
 log_operation_session_end() {
     oplog_enabled || return 0
 
@@ -171,7 +189,7 @@ log_operation_session_end() {
     local items="${2:-0}"
     local size="${3:-0}"
     local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    timestamp=$(get_timestamp)
 
     local size_human=""
     if [[ "$size" =~ ^[0-9]+$ ]] && [[ "$size" -gt 0 ]]; then
