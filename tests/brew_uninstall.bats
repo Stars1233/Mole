@@ -117,7 +117,7 @@ total_size_cleaned=0
 # Simulate 'Enter' for confirmation
 printf '\n' | batch_uninstall_applications > /dev/null 2>&1
 
-grep -q "uninstall --cask brew-app-cask" "$HOME/brew_calls.log"
+grep -q "uninstall --cask --zap brew-app-cask" "$HOME/brew_calls.log"
 EOF
 
     [ "$status" -eq 0 ]

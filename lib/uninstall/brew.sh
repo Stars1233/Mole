@@ -171,7 +171,7 @@ brew_uninstall_cask() {
     is_homebrew_available || return 1
     [[ -z "$cask_name" ]] && return 1
 
-    debug_log "Attempting brew uninstall --cask $cask_name"
+    debug_log "Attempting brew uninstall --cask --zap $cask_name"
 
     # Ensure we have sudo access if needed, to prevent brew from hanging on password prompt
     if [[ "${NONINTERACTIVE:-}" != "1" && -t 0 && -t 1 ]]; then
@@ -198,7 +198,7 @@ brew_uninstall_cask() {
     # Run with timeout to prevent hangs from problematic cask scripts
     local brew_exit=0
     if HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
-        run_with_timeout "$timeout" brew uninstall --cask "$cask_name" 2>&1; then
+        run_with_timeout "$timeout" brew uninstall --cask --zap "$cask_name" 2>&1; then
         uninstall_ok=true
     else
         brew_exit=$?
