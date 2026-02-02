@@ -416,20 +416,20 @@ scan_purge_targets() {
 
         local prune_expr=()
         for i in "${!prune_dirs[@]}"; do
-            prune_expr+=( -name "${prune_dirs[$i]}" )
-            [[ $i -lt $((${#prune_dirs[@]} - 1)) ]] && prune_expr+=( -o )
+            prune_expr+=(-name "${prune_dirs[$i]}")
+            [[ $i -lt $((${#prune_dirs[@]} - 1)) ]] && prune_expr+=(-o)
         done
 
         local target_expr=()
         for i in "${!purge_targets[@]}"; do
-            target_expr+=( -name "${purge_targets[$i]}" -print )
-            [[ $i -lt $((${#purge_targets[@]} - 1)) ]] && target_expr+=( -o )
+            target_expr+=(-name "${purge_targets[$i]}")
+            [[ $i -lt $((${#purge_targets[@]} - 1)) ]] && target_expr+=(-o)
         done
 
         command find "$search_path" -mindepth "$min_depth" -maxdepth "$max_depth" -type d \
             \( "${prune_expr[@]}" \) -prune -o \
-            \( "${target_expr[@]}" \) \
-            2>&1 | tee "$output_file.raw" > /dev/null
+            \( "${target_expr[@]}" \) -print -prune \
+            2> /dev/null > "$output_file.raw" || true
 
         process_scan_results "$output_file.raw"
     fi
