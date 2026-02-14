@@ -648,7 +648,27 @@ select_purge_categories() {
 
         printf "%s\n" "$clear_line"
 
-        printf "%s${GRAY}${ICON_NAV_UP}${ICON_NAV_DOWN}  |  Space Select  |  Enter Confirm  |  A All  |  I Invert  |  Q Quit${NC}\n" "$clear_line"
+        printf "%s${GRAY}${ICON_NAV_UP}${ICON_NAV_DOWN}/J/K  |  Space Select  |  Enter Confirm  |  A All  |  I Invert  |  Q Quit${NC}\n" "$clear_line"
+    }
+    move_cursor_up() {
+        if [[ $cursor_pos -gt 0 ]]; then
+            ((cursor_pos--))
+        elif [[ $top_index -gt 0 ]]; then
+            ((top_index--))
+        fi
+    }
+    move_cursor_down() {
+        local absolute_index=$((top_index + cursor_pos))
+        local last_index=$((total_items - 1))
+        if [[ $absolute_index -lt $last_index ]]; then
+            local visible_count=$((total_items - top_index))
+            [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
+            if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
+                ((cursor_pos++))
+            elif [[ $((top_index + visible_count)) -lt $total_items ]]; then
+                ((top_index++))
+            fi
+        fi
     }
     trap restore_terminal EXIT
     trap handle_interrupt INT TERM
@@ -672,24 +692,10 @@ select_purge_categories() {
                     IFS= read -r -s -n1 -t 1 key3 || key3=""
                     case "$key3" in
                         A) # Up arrow
-                            if [[ $cursor_pos -gt 0 ]]; then
-                                ((cursor_pos--))
-                            elif [[ $top_index -gt 0 ]]; then
-                                ((top_index--))
-                            fi
+                            move_cursor_up
                             ;;
                         B) # Down arrow
-                            local absolute_index=$((top_index + cursor_pos))
-                            local last_index=$((total_items - 1))
-                            if [[ $absolute_index -lt $last_index ]]; then
-                                local visible_count=$((total_items - top_index))
-                                [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
-                                if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
-                                    ((cursor_pos++))
-                                elif [[ $((top_index + visible_count)) -lt $total_items ]]; then
-                                    ((top_index++))
-                                fi
-                            fi
+                            move_cursor_down
                             ;;
                     esac
                 else
@@ -697,6 +703,12 @@ select_purge_categories() {
                     restore_terminal
                     return 1
                 fi
+                ;;
+            "j" | "J") # Vim down
+                move_cursor_down
+                ;;
+            "k" | "K") # Vim up
+                move_cursor_up
                 ;;
             " ") # Space - toggle current item
                 local idx=$((top_index + cursor_pos))
