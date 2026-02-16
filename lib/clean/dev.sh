@@ -34,16 +34,21 @@ clean_dev_npm() {
         note_activity
     fi
 
-    safe_clean "$npm_default_cache"/_cacache/* "npm cache directory"
-    safe_clean "$npm_default_cache"/_npx/* "npm npx cache"
-    safe_clean "$npm_default_cache"/_logs/* "npm logs"
-    safe_clean "$npm_default_cache"/_prebuilds/* "npm prebuilds"
+    # These residual directories are not removed by `npm cache clean --force`
+    local -a npm_residual_dirs=("_cacache" "_npx" "_logs" "_prebuilds")
+    local -a npm_descriptions=("npm cache directory" "npm npx cache" "npm logs" "npm prebuilds")
 
+    # Clean default npm cache path
+    local i
+    for i in "${!npm_residual_dirs[@]}"; do
+        safe_clean "$npm_default_cache/${npm_residual_dirs[$i]}"/* "${npm_descriptions[$i]}"
+    done
+
+    # Clean custom npm cache path (if different from default)
     if [[ "$npm_cache_path" != "$npm_default_cache" ]]; then
-        safe_clean "$npm_cache_path"/_cacache/* "npm cache directory (custom path)"
-        safe_clean "$npm_cache_path"/_npx/* "npm npx cache (custom path)"
-        safe_clean "$npm_cache_path"/_logs/* "npm logs (custom path)"
-        safe_clean "$npm_cache_path"/_prebuilds/* "npm prebuilds (custom path)"
+        for i in "${!npm_residual_dirs[@]}"; do
+            safe_clean "$npm_cache_path/${npm_residual_dirs[$i]}"/* "${npm_descriptions[$i]} (custom path)"
+        done
     fi
 
     # Clean pnpm store cache
@@ -590,10 +595,16 @@ clean_dev_mobile() {
     safe_clean ~/.expo/versions-cache/* "Expo versions cache"
 }
 # JVM ecosystem caches.
-# Gradle excluded (default whitelist, like Maven). Remove via: mo clean --whitelist
+# Gradle: Respects whitelist, cleaned when not protected via: mo clean --whitelist
 clean_dev_jvm() {
+    # Source Maven cleanup module (requires bash for BASH_SOURCE)
+    # shellcheck disable=SC1091
+    source "$(dirname "${BASH_SOURCE[0]}")/maven.sh" 2> /dev/null || true
+    clean_maven_repository
     safe_clean ~/.sbt/* "SBT cache"
     safe_clean ~/.ivy2/cache/* "Ivy cache"
+    safe_clean ~/.gradle/caches/* "Gradle cache"
+    safe_clean ~/.gradle/daemon/* "Gradle daemon"
 }
 # JetBrains Toolbox old IDE versions (keep current + recent backup).
 clean_dev_jetbrains_toolbox() {
