@@ -786,7 +786,12 @@ clean_project_artifacts() {
         echo ""
         exit 130
     }
-    trap cleanup_scan INT TERM
+    # Set up signal handling only if not already set by parent script
+    # This prevents trap conflicts between purge.sh and project.sh
+    if [[ -z "${_MO_PURGE_TRAP_SET:-}" ]]; then
+        trap cleanup_scan INT TERM
+        export _MO_PURGE_TRAP_SET=1
+    fi
     # Scanning is started from purge.sh with start_inline_spinner
     # Launch all scans in parallel
     for path in "${PURGE_SEARCH_PATHS[@]}"; do

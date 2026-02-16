@@ -68,8 +68,13 @@ perform_purge() {
     local stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/mole"
     local monitor_pid=""
 
-    # Cleanup function
+    # Cleanup function - use flag to prevent duplicate execution
+    _cleanup_done=false
     cleanup_monitor() {
+        # Prevent multiple cleanup executions from trap conflicts
+        [[ "$_cleanup_done" == "true" ]] && return
+        _cleanup_done=true
+
         # Remove scanning file to stop monitor
         rm -f "$stats_dir/purge_scanning" 2> /dev/null || true
 
