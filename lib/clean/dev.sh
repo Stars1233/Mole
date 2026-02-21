@@ -366,7 +366,10 @@ clean_xcode_simulator_runtime_volumes() {
         [[ -n "$sorted" ]] && sorted_candidates+=("$sorted")
     done < <(printf '%s\n' "${candidates[@]}" | LC_ALL=C sort)
 
-    echo -e "  ${GRAY}${ICON_LIST}${NC} Xcode runtime volumes · scanning ${#sorted_candidates[@]} entries"
+    # Only show scanning message in debug mode; spinner provides visual feedback otherwise
+    if [[ "${MO_DEBUG:-0}" == "1" ]]; then
+        echo -e "  ${GRAY}${ICON_LIST}${NC} Xcode runtime volumes · scanning ${#sorted_candidates[@]} entries"
+    fi
     local runtime_scan_spinner=false
     if [[ -t 1 ]]; then
         start_section_spinner "Scanning Xcode runtime volumes..."
@@ -474,24 +477,20 @@ clean_xcode_simulator_runtime_volumes() {
     fi
 
     if [[ ${#selected_paths[@]} -eq 0 ]]; then
-        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · nothing to clean"
+        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · already clean"
         note_activity
         return 0
     fi
 
     if ! has_sudo_session; then
         if ! ensure_sudo_session "Cleaning Xcode runtime volumes requires admin access"; then
-            echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode runtime volumes cleanup skipped (sudo denied)"
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Xcode runtime volumes · skipped (sudo denied)"
             note_activity
             return 0
         fi
     fi
 
-    echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · cleaning ${#selected_paths[@]} unused"
-    if [[ $skipped_protected -gt 0 ]]; then
-        echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode runtime volumes · skipped ${skipped_protected} protected items"
-    fi
-
+    # Perform cleanup and report final result in one line
     local removed_count=0
     local removed_size_kb=0
     local selected_path
@@ -504,13 +503,22 @@ clean_xcode_simulator_runtime_volumes() {
         fi
     done
 
+    # Unified output: report result, not intermediate steps
     if [[ $removed_count -gt 0 ]]; then
         local removed_human
         removed_human=$(bytes_to_human "$((removed_size_kb * 1024))")
-        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · removed ${removed_count}, ${removed_human}"
+        if [[ $skipped_protected -gt 0 ]]; then
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · removed ${removed_count} (${removed_human}), skipped ${skipped_protected} protected"
+        else
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode runtime volumes · removed ${removed_count} (${removed_human})"
+        fi
         note_activity
     else
-        echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode runtime volumes · no items removed"
+        if [[ $skipped_protected -gt 0 ]]; then
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Xcode runtime volumes · skipped ${skipped_protected} protected, none removed"
+        else
+            echo -e "  ${GRAY}${ICON_EMPTY}${NC} Xcode runtime volumes · nothing removed"
+        fi
         note_activity
     fi
 }
@@ -838,6 +846,8 @@ clean_dev_editors() {
 # Main developer tools cleanup sequence.
 clean_developer_tools() {
     stop_section_spinner
+
+    # CLI tools and languages
     clean_sqlite_temp_files
     clean_dev_npm
     clean_dev_python
@@ -862,9 +872,13 @@ clean_developer_tools() {
     clean_dev_elixir
     clean_dev_haskell
     clean_dev_ocaml
-    clean_dev_editors
+
+    # GUI developer applications
+    clean_xcode_tools
+    clean_code_editors
+
+    # Homebrew
     safe_clean ~/Library/Caches/Homebrew/* "Homebrew cache"
-    # Clean Homebrew locks without repeated sudo prompts.
     local brew_lock_dirs=(
         "/opt/homebrew/var/homebrew/locks"
         "/usr/local/var/homebrew/locks"

@@ -212,6 +212,9 @@ clean_dev_elixir() { :; }
 clean_dev_haskell() { :; }
 clean_dev_ocaml() { :; }
 clean_dev_editors() { :; }
+clean_code_editors() { :; }
+clean_dev_jetbrains_toolbox() { :; }
+clean_xcode_tools() { :; }
 safe_clean() { :; }
 debug_log() { :; }
 clean_developer_tools
