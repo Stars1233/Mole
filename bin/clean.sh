@@ -137,6 +137,11 @@ note_activity() {
     fi
 }
 
+# shellcheck disable=SC2329
+has_cached_sudo() {
+    sudo -n true 2> /dev/null
+}
+
 CLEANUP_DONE=false
 # shellcheck disable=SC2329
 cleanup() {
@@ -733,7 +738,7 @@ start_cleanup() {
 EOF
 
         # Preview system section when sudo is already cached (no password prompt).
-        if sudo -n true 2> /dev/null; then
+        if has_cached_sudo; then
             SYSTEM_CLEAN=true
             echo -e "${GREEN}${ICON_SUCCESS}${NC} Admin access available, system preview included"
             echo ""
@@ -746,7 +751,7 @@ EOF
     fi
 
     if [[ -t 0 ]]; then
-        if sudo -n true 2> /dev/null; then
+        if has_cached_sudo; then
             SYSTEM_CLEAN=true
             echo -e "${GREEN}${ICON_SUCCESS}${NC} Admin access already available"
             echo ""
@@ -786,7 +791,7 @@ EOF
     else
         echo ""
         echo "Running in non-interactive mode"
-        if sudo -n true 2> /dev/null; then
+        if has_cached_sudo; then
             SYSTEM_CLEAN=true
             echo "  ${ICON_LIST} System-level cleanup enabled, sudo session active"
         else
