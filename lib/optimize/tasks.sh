@@ -406,18 +406,8 @@ opt_launch_services_rebuild() {
         start_inline_spinner ""
     fi
 
-    local lsregister=""
-    local -a lsregister_candidates=(
-        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-        "/System/Library/CoreServices/Frameworks/LaunchServices.framework/Support/lsregister"
-    )
-    local lsregister_candidate=""
-    for lsregister_candidate in "${lsregister_candidates[@]}"; do
-        if [[ -x "$lsregister_candidate" ]]; then
-            lsregister="$lsregister_candidate"
-            break
-        fi
-    done
+    local lsregister
+    lsregister=$(get_lsregister_path)
 
     if [[ -n "$lsregister" ]]; then
         local success=0
