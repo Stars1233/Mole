@@ -720,7 +720,7 @@ clean_application_support_logs() {
         return 0
     fi
     start_section_spinner "Scanning Application Support..."
-    local total_size=0
+    local total_size_bytes=0
     local cleaned_count=0
     local found_any=false
     # Enable nullglob for safe globbing.
@@ -729,7 +729,8 @@ clean_application_support_logs() {
     shopt -s nullglob
     local app_count=0
     local total_apps
-    total_apps=$(find ~/Library/Application\ Support -mindepth 1 -maxdepth 1 -type d 2> /dev/null | wc -l | tr -d ' ')
+    total_apps=$(command find "$HOME/Library/Application Support" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | wc -l | tr -d ' ')
+    [[ "$total_apps" =~ ^[0-9]+$ ]] || total_apps=0
     local last_progress_update
     last_progress_update=$(get_epoch_seconds)
     for app_dir in ~/Library/Application\ Support/*; do
@@ -756,21 +757,32 @@ clean_application_support_logs() {
         for candidate in "${start_candidates[@]}"; do
             if [[ -d "$candidate" ]]; then
                 local item_found=false
-                local candidate_size=0
+                local candidate_size_bytes=0
+                local candidate_item_count=0
                 while IFS= read -r -d '' item; do
                     [[ -e "$item" ]] || continue
                     item_found=true
+                    ((candidate_item_count++))
                     if [[ -f "$item" && ! -L "$item" ]]; then
                         local bytes
                         bytes=$(stat -f%z "$item" 2> /dev/null || echo "0")
-                        [[ "$bytes" =~ ^[0-9]+$ ]] && ((candidate_size += bytes / 1024)) || true
+                        [[ "$bytes" =~ ^[0-9]+$ ]] && ((candidate_size_bytes += bytes)) || true
+                    fi
+                    if ((candidate_item_count % 250 == 0)); then
+                        local current_time
+                        current_time=$(get_epoch_seconds)
+                        if [[ "$current_time" =~ ^[0-9]+$ ]] && ((current_time - last_progress_update >= 1)); then
+                            stop_section_spinner
+                            start_section_spinner "Scanning Application Support... $app_count/$total_apps ($app_name: $candidate_item_count items)"
+                            last_progress_update=$current_time
+                        fi
                     fi
                     if [[ "$DRY_RUN" != "true" ]]; then
                         safe_remove "$item" true > /dev/null 2>&1 || true
                     fi
                 done < <(command find "$candidate" -mindepth 1 -maxdepth 1 -print0 2> /dev/null || true)
                 if [[ "$item_found" == "true" ]]; then
-                    ((total_size += candidate_size))
+                    ((total_size_bytes += candidate_size_bytes))
                     ((cleaned_count++))
                     found_any=true
                 fi
@@ -787,21 +799,32 @@ clean_application_support_logs() {
         for candidate in "${gc_candidates[@]}"; do
             if [[ -d "$candidate" ]]; then
                 local item_found=false
-                local candidate_size=0
+                local candidate_size_bytes=0
+                local candidate_item_count=0
                 while IFS= read -r -d '' item; do
                     [[ -e "$item" ]] || continue
                     item_found=true
+                    ((candidate_item_count++))
                     if [[ -f "$item" && ! -L "$item" ]]; then
                         local bytes
                         bytes=$(stat -f%z "$item" 2> /dev/null || echo "0")
-                        [[ "$bytes" =~ ^[0-9]+$ ]] && ((candidate_size += bytes / 1024)) || true
+                        [[ "$bytes" =~ ^[0-9]+$ ]] && ((candidate_size_bytes += bytes)) || true
+                    fi
+                    if ((candidate_item_count % 250 == 0)); then
+                        local current_time
+                        current_time=$(get_epoch_seconds)
+                        if [[ "$current_time" =~ ^[0-9]+$ ]] && ((current_time - last_progress_update >= 1)); then
+                            stop_section_spinner
+                            start_section_spinner "Scanning Application Support... group container ($container: $candidate_item_count items)"
+                            last_progress_update=$current_time
+                        fi
                     fi
                     if [[ "$DRY_RUN" != "true" ]]; then
                         safe_remove "$item" true > /dev/null 2>&1 || true
                     fi
                 done < <(command find "$candidate" -mindepth 1 -maxdepth 1 -print0 2> /dev/null || true)
                 if [[ "$item_found" == "true" ]]; then
-                    ((total_size += candidate_size))
+                    ((total_size_bytes += candidate_size_bytes))
                     ((cleaned_count++))
                     found_any=true
                 fi
@@ -812,14 +835,15 @@ clean_application_support_logs() {
     stop_section_spinner
     if [[ "$found_any" == "true" ]]; then
         local size_human
-        size_human=$(bytes_to_human "$((total_size * 1024))")
+        size_human=$(bytes_to_human "$total_size_bytes")
+        local total_size_kb=$(((total_size_bytes + 1023) / 1024))
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Application Support logs/caches${NC}, ${YELLOW}$size_human dry${NC}"
         else
             echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Application Support logs/caches${NC}, ${GREEN}$size_human${NC}"
         fi
         ((files_cleaned += cleaned_count))
-        ((total_size_cleaned += total_size))
+        ((total_size_cleaned += total_size_kb))
         ((total_items++))
         note_activity
     fi
