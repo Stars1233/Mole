@@ -178,12 +178,13 @@ clean_deep_system() {
         # Count and size old files before deletion
         local file_count=0
         local total_size_kb=0
-        while IFS= read -r -d '' file; do
-            ((file_count++))
-            local file_size
-            file_size=$(sudo stat -f%z "$file" 2> /dev/null || echo "0")
-            ((total_size_kb += file_size / 1024))
-        done < <(sudo find "$mem_reports_dir" -type f -mtime +30 -print0 2> /dev/null || true)
+        local total_bytes=0
+        local stats_out
+        stats_out=$(sudo find "$mem_reports_dir" -type f -mtime +30 -exec stat -f "%z" {} + 2> /dev/null | awk '{c++; s+=$1} END {print c+0, s+0}' || true)
+        if [[ -n "$stats_out" ]]; then
+            read -r file_count total_bytes <<< "$stats_out"
+            total_size_kb=$((total_bytes / 1024))
+        fi
 
         if [[ "$file_count" -gt 0 ]]; then
             if [[ "${DRY_RUN:-}" != "true" ]]; then
