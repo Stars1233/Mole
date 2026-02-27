@@ -976,6 +976,44 @@ func TestRenderCardWrapsOnNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestRenderMemoryCardHidesSwapSizeOnNarrowWidth(t *testing.T) {
+	card := renderMemoryCard(MemoryStatus{
+		Used:        8 << 30,
+		Total:       16 << 30,
+		UsedPercent: 50.0,
+		SwapUsed:    482,
+		SwapTotal:   1000,
+	}, 38)
+
+	if len(card.lines) < 3 {
+		t.Fatalf("renderMemoryCard() expected at least 3 lines, got %d", len(card.lines))
+	}
+
+	swapLine := stripANSI(card.lines[2])
+	if strings.Contains(swapLine, "/") {
+		t.Fatalf("renderMemoryCard() narrow width should hide swap size, got %q", swapLine)
+	}
+}
+
+func TestRenderMemoryCardShowsSwapSizeOnWideWidth(t *testing.T) {
+	card := renderMemoryCard(MemoryStatus{
+		Used:        8 << 30,
+		Total:       16 << 30,
+		UsedPercent: 50.0,
+		SwapUsed:    482,
+		SwapTotal:   1000,
+	}, 60)
+
+	if len(card.lines) < 3 {
+		t.Fatalf("renderMemoryCard() expected at least 3 lines, got %d", len(card.lines))
+	}
+
+	swapLine := stripANSI(card.lines[2])
+	if !strings.Contains(swapLine, "/") {
+		t.Fatalf("renderMemoryCard() wide width should include swap size, got %q", swapLine)
+	}
+}
+
 func TestModelViewErrorRendersSingleMole(t *testing.T) {
 	m := model{
 		width:      120,

@@ -266,7 +266,7 @@ func renderCPUCard(cpu CPUStatus, thermal ThermalStatus) cardData {
 	return cardData{icon: iconCPU, title: "CPU", lines: lines}
 }
 
-func renderMemoryCard(mem MemoryStatus) cardData {
+func renderMemoryCard(mem MemoryStatus, cardWidth int) cardData {
 	// Check if swap is being used (or at least allocated).
 	hasSwap := mem.SwapTotal > 0 || mem.SwapUsed > 0
 
@@ -287,8 +287,16 @@ func renderMemoryCard(mem MemoryStatus) cardData {
 		if mem.SwapTotal > 0 {
 			swapPercent = (float64(mem.SwapUsed) / float64(mem.SwapTotal)) * 100.0
 		}
+		swapLine := fmt.Sprintf("Swap   %s  %5.1f%%", progressBar(swapPercent), swapPercent)
 		swapText := fmt.Sprintf("%s/%s", humanBytesCompact(mem.SwapUsed), humanBytesCompact(mem.SwapTotal))
-		lines = append(lines, fmt.Sprintf("Swap   %s  %5.1f%% %s", progressBar(swapPercent), swapPercent, swapText))
+		swapLineWithText := swapLine + " " + swapText
+		if cardWidth > 0 && lipgloss.Width(swapLineWithText) <= cardWidth {
+			lines = append(lines, swapLineWithText)
+		} else if cardWidth <= 0 {
+			lines = append(lines, swapLineWithText)
+		} else {
+			lines = append(lines, swapLine)
+		}
 
 		lines = append(lines, fmt.Sprintf("Total  %s / %s", humanBytes(mem.Used), humanBytes(mem.Total)))
 		lines = append(lines, fmt.Sprintf("Avail  %s", humanBytes(mem.Total-mem.Used))) // Simplified avail logic for consistency
@@ -416,7 +424,7 @@ func renderProcessCard(procs []ProcessInfo) cardData {
 func buildCards(m MetricsSnapshot, width int) []cardData {
 	cards := []cardData{
 		renderCPUCard(m.CPU, m.Thermal),
-		renderMemoryCard(m.Memory),
+		renderMemoryCard(m.Memory, width),
 		renderDiskCard(m.Disks, m.DiskIO),
 		renderBatteryCard(m.Batteries, m.Thermal),
 		renderProcessCard(m.TopProcesses),
