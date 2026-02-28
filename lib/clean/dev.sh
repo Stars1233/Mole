@@ -390,7 +390,7 @@ clean_xcode_simulator_runtime_volumes() {
     local unused_count=0
     for candidate in "${sorted_candidates[@]}"; do
         local status="UNUSED"
-        if _sim_runtime_is_path_in_use "$candidate" "${mount_points[@]}"; then
+        if [[ ${#mount_points[@]} -gt 0 ]] && _sim_runtime_is_path_in_use "$candidate" "${mount_points[@]}"; then
             status="IN_USE"
             in_use_count=$((in_use_count + 1))
         else
