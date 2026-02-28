@@ -267,6 +267,9 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/system.sh"
 
+defaults() { echo "1"; }
+
+
 clean_time_machine_failed_backups
 EOF
 
@@ -309,6 +312,9 @@ MOCK_TMUTIL
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/system.sh"
+
+defaults() { echo "1"; }
+
 
 clean_time_machine_failed_backups
 EOF

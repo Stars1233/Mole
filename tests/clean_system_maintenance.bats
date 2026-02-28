@@ -274,6 +274,9 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/system.sh"
 
+defaults() { echo "1"; }
+
+
 tmutil() {
     if [[ "$1" == "destinationinfo" ]]; then
         echo "No destinations configured"
@@ -296,6 +299,9 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/system.sh"
+
+defaults() { echo "1"; }
+
 
 run_with_timeout() {
     printf '%s\n' \
@@ -320,6 +326,9 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/system.sh"
+
+defaults() { echo "1"; }
+
 
 run_with_timeout() { echo "Snapshots for disk /:"; }
 start_section_spinner(){ :; }
