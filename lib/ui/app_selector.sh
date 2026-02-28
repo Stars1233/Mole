@@ -133,7 +133,7 @@ select_apps_for_uninstall() {
             sizekb_csv+=",${size_kb:-0}"
         fi
         names_arr+=("$display_name")
-        ((idx++)) || true
+        idx=$((idx + 1))
     done
     # Use newline separator for names (safe for names with commas)
     local names_newline

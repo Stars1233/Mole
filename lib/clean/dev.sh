@@ -259,11 +259,11 @@ clean_xcode_documentation_cache() {
     local entry
     for entry in "${sorted_entries[@]}"; do
         if [[ $idx -eq 0 ]]; then
-            ((idx++)) || true
+            idx=$((idx + 1))
             continue
         fi
         stale_entries+=("$entry")
-        ((idx++)) || true
+        idx=$((idx + 1))
     done
 
     if [[ ${#stale_entries[@]} -eq 0 ]]; then
@@ -729,12 +729,12 @@ clean_dev_jetbrains_toolbox() {
             local dir_path
             for dir_path in "${sorted_dirs[@]}"; do
                 if [[ $idx -lt $keep_previous ]]; then
-                    ((idx++)) || true
+                    idx=$((idx + 1))
                     continue
                 fi
                 safe_clean "$dir_path" "JetBrains Toolbox old IDE version"
                 note_activity
-                ((idx++)) || true
+                idx=$((idx + 1))
             done
         done < <(command find "$product_dir" -mindepth 1 -maxdepth 1 -type d -name "ch-*" -print0 2> /dev/null)
     done

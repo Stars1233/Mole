@@ -58,7 +58,7 @@ hint_get_path_size_kb_with_timeout() {
 record_project_artifact_hint() {
     local path="$1"
 
-    ((PROJECT_ARTIFACT_HINT_COUNT++)) || true
+    PROJECT_ARTIFACT_HINT_COUNT=$((PROJECT_ARTIFACT_HINT_COUNT + 1))
 
     if [[ ${#PROJECT_ARTIFACT_HINT_EXAMPLES[@]} -lt 2 ]]; then
         PROJECT_ARTIFACT_HINT_EXAMPLES+=("${path/#$HOME/~}")
@@ -74,8 +74,8 @@ record_project_artifact_hint() {
     local size_kb=""
     if size_kb=$(hint_get_path_size_kb_with_timeout "$path" "$timeout_seconds"); then
         if [[ "$size_kb" =~ ^[0-9]+$ ]]; then
-            ((PROJECT_ARTIFACT_HINT_ESTIMATED_KB += size_kb)) || true
-            ((PROJECT_ARTIFACT_HINT_ESTIMATE_SAMPLES++)) || true
+            PROJECT_ARTIFACT_HINT_ESTIMATED_KB=$((PROJECT_ARTIFACT_HINT_ESTIMATED_KB + size_kb))
+            PROJECT_ARTIFACT_HINT_ESTIMATE_SAMPLES=$((PROJECT_ARTIFACT_HINT_ESTIMATE_SAMPLES + 1))
         else
             PROJECT_ARTIFACT_HINT_ESTIMATE_PARTIAL=true
         fi
@@ -140,8 +140,8 @@ probe_project_artifact_hints() {
         local root_projects_scanned=0
 
         if is_quick_purge_project_root "$root"; then
-            ((scanned_projects++)) || true
-            ((root_projects_scanned++)) || true
+            scanned_projects=$((scanned_projects + 1))
+            root_projects_scanned=$((root_projects_scanned + 1))
             if [[ $scanned_projects -gt $max_projects ]]; then
                 PROJECT_ARTIFACT_HINT_TRUNCATED=true
                 stop_scan=true
@@ -175,8 +175,8 @@ probe_project_artifact_hints() {
                 break
             fi
 
-            ((scanned_projects++)) || true
-            ((root_projects_scanned++)) || true
+            scanned_projects=$((scanned_projects + 1))
+            root_projects_scanned=$((root_projects_scanned + 1))
             if [[ $scanned_projects -gt $max_projects ]]; then
                 PROJECT_ARTIFACT_HINT_TRUNCATED=true
                 stop_scan=true
@@ -206,7 +206,7 @@ probe_project_artifact_hints() {
                         ;;
                 esac
 
-                ((nested_count++)) || true
+                nested_count=$((nested_count + 1))
                 if [[ $nested_count -gt $max_nested_per_project ]]; then
                     break
                 fi

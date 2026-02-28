@@ -70,7 +70,7 @@ manage_purge_paths() {
             line="${line#"${line%%[![:space:]]*}"}"
             line="${line%"${line##*[![:space:]]}"}"
             [[ -z "$line" || "$line" =~ ^# ]] && continue
-            ((custom_count++)) || true
+            custom_count=$((custom_count + 1))
         done < "$PURGE_PATHS_CONFIG"
     fi
 

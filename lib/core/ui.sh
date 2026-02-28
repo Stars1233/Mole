@@ -138,8 +138,8 @@ truncate_by_display_width() {
         fi
 
         truncated+="$char"
-        ((width += char_width)) || true
-        ((i++)) || true
+        width=$((width + char_width))
+        i=$((i + 1))
     done
 
     # Restore locale
@@ -265,7 +265,7 @@ read_key() {
 drain_pending_input() {
     local drained=0
     while IFS= read -r -s -n 1 -t 0.01 _ 2> /dev/null; do
-        ((drained++)) || true
+        drained=$((drained + 1))
         [[ $drained -gt 100 ]] && break
     done
 }
@@ -341,7 +341,7 @@ start_inline_spinner() {
                 local c="${chars:$((i % ${#chars})):1}"
                 # Output to stderr to avoid interfering with stdout
                 printf "\r${MOLE_SPINNER_PREFIX:-}${BLUE}%s${NC} %s" "$c" "$display_message" >&2 || break
-                ((i++)) || true
+                i=$((i + 1))
                 sleep 0.05
             done
 
@@ -367,7 +367,7 @@ stop_inline_spinner() {
         local wait_count=0
         while kill -0 "$INLINE_SPINNER_PID" 2> /dev/null && [[ $wait_count -lt 5 ]]; do
             sleep 0.05 2> /dev/null || true
-            ((wait_count++)) || true
+            wait_count=$((wait_count + 1))
         done
 
         # Only use SIGKILL as last resort if process is stuck

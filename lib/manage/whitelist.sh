@@ -302,7 +302,7 @@ ${GRAY}Edit: ${display_config}${NC}"
         cache_patterns+=("$pattern")
         menu_options+=("$display_name")
 
-        ((index++)) || true
+        index=$((index + 1))
     done <<< "$items_source"
 
     # Identify custom patterns (not in predefined list)

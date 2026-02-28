@@ -138,7 +138,7 @@ perform_auto_fix() {
         echo -e "${BLUE}Enabling Firewall...${NC}"
         if sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on > /dev/null 2>&1; then
             echo -e "${GREEN}✓${NC} Firewall enabled"
-            ((fixed_count++)) || true
+            fixed_count=$((fixed_count + 1))
             fixed_items+=("Firewall enabled")
         else
             echo -e "${RED}✗${NC} Failed to enable Firewall"
@@ -154,7 +154,7 @@ perform_auto_fix() {
 auth       sufficient     pam_tid.so
 ' '$pam_file'" 2> /dev/null; then
             echo -e "${GREEN}✓${NC} Touch ID configured"
-            ((fixed_count++)) || true
+            fixed_count=$((fixed_count + 1))
             fixed_items+=("Touch ID configured for sudo")
         else
             echo -e "${RED}✗${NC} Failed to configure Touch ID"
@@ -167,7 +167,7 @@ auth       sufficient     pam_tid.so
         echo -e "${BLUE}Installing Rosetta 2...${NC}"
         if sudo softwareupdate --install-rosetta --agree-to-license 2>&1 | grep -qE "(Installing|Installed|already installed)"; then
             echo -e "${GREEN}✓${NC} Rosetta 2 installed"
-            ((fixed_count++)) || true
+            fixed_count=$((fixed_count + 1))
             fixed_items+=("Rosetta 2 installed")
         else
             echo -e "${RED}✗${NC} Failed to install Rosetta 2"

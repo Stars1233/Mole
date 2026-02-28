@@ -536,7 +536,7 @@ calculate_total_size() {
         if [[ -n "$file" && -e "$file" ]]; then
             local size_kb
             size_kb=$(get_path_size_kb "$file")
-            ((total_kb += size_kb)) || true
+            total_kb=$((total_kb + size_kb))
         fi
     done <<< "$files"
 

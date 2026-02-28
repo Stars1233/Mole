@@ -159,7 +159,7 @@ paginated_multi_select() {
         # Count selections for header display
         local selected_count=0
         for ((i = 0; i < total_items; i++)); do
-            [[ ${selected[i]} == true ]] && ((selected_count++)) || true
+            [[ ${selected[i]} == true ]] && selected_count=$((selected_count + 1))
         done
 
         # Header
@@ -247,9 +247,9 @@ paginated_multi_select() {
                         [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
 
                         if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
-                            ((cursor_pos++)) || true
+                            cursor_pos=$((cursor_pos + 1))
                         elif [[ $((top_index + visible_count)) -lt $total_items ]]; then
-                            ((top_index++)) || true
+                            top_index=$((top_index + 1))
                             visible_count=$((total_items - top_index))
                             [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
                             if [[ $cursor_pos -ge $visible_count ]]; then

@@ -314,7 +314,7 @@ opt_sqlite_vacuum() {
             local file_size
             file_size=$(get_file_size "$db_file")
             if [[ "$file_size" -gt "$MOLE_SQLITE_MAX_SIZE" ]]; then
-                ((skipped++)) || true
+                skipped=$((skipped + 1))
                 continue
             fi
 
@@ -327,7 +327,7 @@ opt_sqlite_vacuum() {
             freelist_count=$(echo "$page_info" | awk 'NR==2 {print $1}' 2> /dev/null || echo "")
             if [[ "$page_count" =~ ^[0-9]+$ && "$freelist_count" =~ ^[0-9]+$ && "$page_count" -gt 0 ]]; then
                 if ((freelist_count * 100 < page_count * 5)); then
-                    ((skipped++)) || true
+                    skipped=$((skipped + 1))
                     continue
                 fi
             fi
@@ -341,7 +341,7 @@ opt_sqlite_vacuum() {
                 set -e
 
                 if [[ $integrity_status -ne 0 ]] || ! echo "$integrity_check" | grep -q "ok"; then
-                    ((skipped++)) || true
+                    skipped=$((skipped + 1))
                     continue
                 fi
             fi
@@ -354,14 +354,14 @@ opt_sqlite_vacuum() {
                 set -e
 
                 if [[ $exit_code -eq 0 ]]; then
-                    ((vacuumed++)) || true
+                    vacuumed=$((vacuumed + 1))
                 elif [[ $exit_code -eq 124 ]]; then
-                    ((timed_out++)) || true
+                    timed_out=$((timed_out + 1))
                 else
-                    ((failed++)) || true
+                    failed=$((failed + 1))
                 fi
             else
-                ((vacuumed++)) || true
+                vacuumed=$((vacuumed + 1))
             fi
         done < <(compgen -G "$pattern" || true)
     done
@@ -730,7 +730,7 @@ opt_spotlight_index_optimize() {
             test_end=$(get_epoch_seconds)
             test_duration=$((test_end - test_start))
             if [[ $test_duration -gt 3 ]]; then
-                ((slow_count++)) || true
+                slow_count=$((slow_count + 1))
             fi
             sleep 1
         done

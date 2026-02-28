@@ -86,7 +86,7 @@ clean_deep_system() {
                 continue
             fi
             if safe_sudo_remove "$item"; then
-                ((updates_cleaned++)) || true
+                updates_cleaned=$((updates_cleaned + 1))
             fi
         done < <(find /Library/Updates -mindepth 1 -maxdepth 1 -print0 2> /dev/null || true)
         stop_section_spinner
@@ -143,7 +143,7 @@ clean_deep_system() {
             debug_log "Cleaning macOS installer: $app_name, $size_human, ${age_days} days old"
             if safe_sudo_remove "$installer_app"; then
                 log_success "$app_name, $size_human"
-                ((installer_cleaned++)) || true
+                installer_cleaned=$((installer_cleaned + 1))
             fi
         fi
     done
@@ -153,7 +153,7 @@ clean_deep_system() {
     local code_sign_cleaned=0
     while IFS= read -r -d '' cache_dir; do
         if safe_sudo_remove "$cache_dir"; then
-            ((code_sign_cleaned++)) || true
+            code_sign_cleaned=$((code_sign_cleaned + 1))
         fi
     done < <(run_with_timeout 5 command find /private/var/folders -type d -name "*.code_sign_clone" -path "*/X/*" -print0 2> /dev/null || true)
     stop_section_spinner
@@ -300,7 +300,7 @@ clean_time_machine_failed_backups() {
                 size_human=$(bytes_to_human "$((size_kb * 1024))")
                 if [[ "$DRY_RUN" == "true" ]]; then
                     echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Incomplete backup: $backup_name${NC}, ${YELLOW}$size_human dry${NC}"
-                    ((tm_cleaned++)) || true
+                    tm_cleaned=$((tm_cleaned + 1))
                     note_activity
                     continue
                 fi
@@ -310,10 +310,10 @@ clean_time_machine_failed_backups() {
                 fi
                 if tmutil delete "$inprogress_file" 2> /dev/null; then
                     echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Incomplete backup: $backup_name${NC}, ${GREEN}$size_human${NC}"
-                    ((tm_cleaned++)) || true
-                    ((files_cleaned++)) || true
-                    ((total_size_cleaned += size_kb)) || true
-                    ((total_items++)) || true
+                    tm_cleaned=$((tm_cleaned + 1))
+                    files_cleaned=$((files_cleaned + 1))
+                    total_size_cleaned=$((total_size_cleaned + size_kb))
+                    total_items=$((total_items + 1))
                     note_activity
                 else
                     echo -e "  ${YELLOW}!${NC} Could not delete: $backup_name · try manually with sudo"
@@ -352,7 +352,7 @@ clean_time_machine_failed_backups() {
                     size_human=$(bytes_to_human "$((size_kb * 1024))")
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Incomplete APFS backup in $bundle_name: $backup_name${NC}, ${YELLOW}$size_human dry${NC}"
-                        ((tm_cleaned++)) || true
+                        tm_cleaned=$((tm_cleaned + 1))
                         note_activity
                         continue
                     fi
@@ -361,10 +361,10 @@ clean_time_machine_failed_backups() {
                     fi
                     if tmutil delete "$inprogress_file" 2> /dev/null; then
                         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Incomplete APFS backup in $bundle_name: $backup_name${NC}, ${GREEN}$size_human${NC}"
-                        ((tm_cleaned++)) || true
-                        ((files_cleaned++)) || true
-                        ((total_size_cleaned += size_kb)) || true
-                        ((total_items++)) || true
+                        tm_cleaned=$((tm_cleaned + 1))
+                        files_cleaned=$((files_cleaned + 1))
+                        total_size_cleaned=$((total_size_cleaned + size_kb))
+                        total_items=$((total_items + 1))
                         note_activity
                     else
                         echo -e "  ${YELLOW}!${NC} Could not delete from bundle: $backup_name"

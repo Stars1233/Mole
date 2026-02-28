@@ -155,7 +155,7 @@ paginated_multi_select() {
                 # Only count if not already selected (handles duplicates)
                 if [[ ${selected[idx]} != true ]]; then
                     selected[idx]=true
-                    ((selected_count++)) || true
+                    selected_count=$((selected_count + 1))
                 fi
             fi
         done
@@ -654,7 +654,7 @@ paginated_multi_select() {
 
                         if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
                             local old_cursor=$cursor_pos
-                            ((cursor_pos++)) || true
+                            cursor_pos=$((cursor_pos + 1))
                             local new_cursor=$cursor_pos
 
                             if [[ -n "$filter_text" || -n "${MOLE_READ_KEY_FORCE_CHAR:-}" ]]; then
@@ -674,7 +674,7 @@ paginated_multi_select() {
                             prev_cursor_pos=$cursor_pos
                             continue
                         elif [[ $((top_index + visible_count)) -lt ${#view_indices[@]} ]]; then
-                            ((top_index++)) || true
+                            top_index=$((top_index + 1))
                             visible_count=$((${#view_indices[@]} - top_index))
                             [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
                             if [[ $cursor_pos -ge $visible_count ]]; then
@@ -716,7 +716,7 @@ paginated_multi_select() {
                         ((selected_count--))
                     else
                         selected[real]=true
-                        ((selected_count++)) || true
+                        selected_count=$((selected_count + 1))
                     fi
 
                     # Incremental update: only redraw header (for count) and current row
@@ -757,9 +757,9 @@ paginated_multi_select() {
                         local visible_count=$((${#view_indices[@]} - top_index))
                         [[ $visible_count -gt $items_per_page ]] && visible_count=$items_per_page
                         if [[ $cursor_pos -lt $((visible_count - 1)) ]]; then
-                            ((cursor_pos++)) || true
+                            cursor_pos=$((cursor_pos + 1))
                         elif [[ $((top_index + visible_count)) -lt ${#view_indices[@]} ]]; then
-                            ((top_index++)) || true
+                            top_index=$((top_index + 1))
                         fi
                         need_full_redraw=true
                     fi
@@ -843,7 +843,7 @@ paginated_multi_select() {
                     if [[ $idx -lt ${#view_indices[@]} ]]; then
                         local real="${view_indices[idx]}"
                         selected[real]=true
-                        ((selected_count++)) || true
+                        selected_count=$((selected_count + 1))
                     fi
                 fi
 

@@ -117,7 +117,7 @@ perform_updates() {
             if "$mole_bin" update 2>&1 | grep -qE "(Updated|latest version)"; then
                 echo -e "${GREEN}${ICON_SUCCESS}${NC} Mole updated"
                 reset_mole_cache
-                ((updated_count++)) || true
+                updated_count=$((updated_count + 1))
             else
                 echo -e "${RED}✗${NC} Mole update failed"
             fi

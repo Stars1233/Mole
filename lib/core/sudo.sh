@@ -76,7 +76,7 @@ _request_password() {
 
         if [[ -z "$password" ]]; then
             unset password
-            ((attempts++)) || true
+            attempts=$((attempts + 1))
             if [[ $attempts -lt 3 ]]; then
                 echo -e "${GRAY}${ICON_WARNING}${NC} Password cannot be empty" > "$tty_path"
             fi
@@ -91,7 +91,7 @@ _request_password() {
         fi
 
         unset password
-        ((attempts++)) || true
+        attempts=$((attempts + 1))
         if [[ $attempts -lt 3 ]]; then
             echo -e "${GRAY}${ICON_WARNING}${NC} Incorrect password, try again" > "$tty_path"
         fi
@@ -166,7 +166,7 @@ request_sudo_access() {
             break
         fi
         sleep 0.1
-        ((elapsed++)) || true
+        elapsed=$((elapsed + 1))
     done
 
     # Touch ID failed/cancelled - clean up thoroughly before password input
@@ -216,7 +216,7 @@ _start_sudo_keepalive() {
         local retry_count=0
         while true; do
             if ! sudo -n -v 2> /dev/null; then
-                ((retry_count++)) || true
+                retry_count=$((retry_count + 1))
                 if [[ $retry_count -ge 3 ]]; then
                     exit 1
                 fi
