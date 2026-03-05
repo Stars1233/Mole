@@ -37,30 +37,23 @@ get_latest_version_from_github() {
     echo "$version"
 }
 
-# Check if mole exists in a brew formula list string.
-# Args: $1 - brew_list output string
-# Returns 0 if "mole" appears as a whole line, 1 otherwise.
-_mole_in_brew_list() {
-    local list="$1"
-    [[ -n "$list" ]] && [[ $'\n'"$list"$'\n' == *$'\n'"mole"$'\n'* ]]
-}
 
 # Install detection (Homebrew vs manual).
 # Uses variable capture + string matching to avoid SIGPIPE under pipefail.
 is_homebrew_install() {
-    local mole_path link_target brew_list="" has_brew=false
+    local mole_path link_target has_brew=false
     mole_path=$(command -v mole 2> /dev/null) || return 1
 
-    # Cache brew list once if brew is available
     if command -v brew > /dev/null 2>&1; then
         has_brew=true
-        brew_list=$(brew list --formula 2> /dev/null) || true
     fi
 
     if [[ -L "$mole_path" ]]; then
         link_target=$(readlink "$mole_path" 2> /dev/null) || true
         if [[ "$link_target" == *"Cellar/mole"* ]]; then
-            $has_brew && _mole_in_brew_list "$brew_list" && return 0
+            if $has_brew; then
+                brew list mole > /dev/null 2>&1 && return 0
+            fi
             return 1
         fi
     fi
@@ -70,7 +63,7 @@ is_homebrew_install() {
             /opt/homebrew/bin/mole | /usr/local/bin/mole)
                 if [[ -d /opt/homebrew/Cellar/mole ]] || [[ -d /usr/local/Cellar/mole ]]; then
                     if $has_brew; then
-                        _mole_in_brew_list "$brew_list" && return 0
+                        brew list mole > /dev/null 2>&1 && return 0
                     else
                         return 0 # Cellar exists, probably Homebrew install
                     fi
@@ -83,7 +76,7 @@ is_homebrew_install() {
         local brew_prefix
         brew_prefix=$(brew --prefix 2> /dev/null)
         if [[ -n "$brew_prefix" && "$mole_path" == "$brew_prefix/bin/mole" && -d "$brew_prefix/Cellar/mole" ]]; then
-            _mole_in_brew_list "$brew_list" && return 0
+            brew list mole > /dev/null 2>&1 && return 0
         fi
     fi
 
@@ -133,7 +126,11 @@ check_for_updates() {
             fi
 
             if [[ -n "$latest" && "$VERSION" != "$latest" && "$(printf '%s\n' "$VERSION" "$latest" | sort -V | head -1)" == "$VERSION" ]]; then
-                printf "\nUpdate available: %s → %s, run %smo update%s\n\n" "$VERSION" "$latest" "$GREEN" "$NC" > "$msg_cache"
+                if is_homebrew_install; then
+                    printf "\nUpdate %s available on GitHub (Homebrew sync may be pending)\nRun %sbrew upgrade mole%s or wait for the tap to sync\n\n" "$latest" "$GREEN" "$NC" > "$msg_cache"
+                else
+                    printf "\nUpdate available: %s → %s, run %smo update%s\n\n" "$VERSION" "$latest" "$GREEN" "$NC" > "$msg_cache"
+                fi
             else
                 echo -n > "$msg_cache"
             fi
@@ -533,7 +530,7 @@ remove_mole() {
     fi
 
     if [[ -n "$brew_cmd" ]]; then
-        if "$brew_cmd" list --formula 2> /dev/null | grep -q "^mole$"; then
+        if "$brew_cmd" list mole > /dev/null 2>&1; then
             brew_has_mole="true"
         fi
     fi
@@ -567,7 +564,9 @@ remove_mole() {
     local found_mo
     found_mo=$(command -v mo 2> /dev/null || true)
     if [[ -n "$found_mo" && -f "$found_mo" ]]; then
-        alias_installs+=("$found_mo")
+        if [[ ! -L "$found_mo" ]] || ! readlink "$found_mo" | grep -q "Cellar/mole"; then
+            alias_installs+=("$found_mo")
+        fi
     fi
 
     local -a alias_fallback=(
@@ -578,7 +577,9 @@ remove_mole() {
 
     for alias in "${alias_fallback[@]}"; do
         if [[ -f "$alias" && "$alias" != "$found_mo" ]]; then
-            alias_installs+=("$alias")
+            if [[ ! -L "$alias" ]] || ! readlink "$alias" | grep -q "Cellar/mole"; then
+                alias_installs+=("$alias")
+            fi
         fi
     done
 
