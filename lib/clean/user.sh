@@ -1093,6 +1093,9 @@ clean_browsers() {
     safe_clean ~/Library/Application\ Support/Google/Chrome/*/Application\ Cache/* "Chrome app cache"
     safe_clean ~/Library/Application\ Support/Google/Chrome/*/GPUCache/* "Chrome GPU cache"
     safe_clean ~/Library/Application\ Support/Google/Chrome/component_crx_cache/* "Chrome component CRX cache"
+    safe_clean ~/Library/Application\ Support/Google/Chrome/ShaderCache/* "Chrome shader cache"
+    safe_clean ~/Library/Application\ Support/Google/Chrome/GrShaderCache/* "Chrome GR shader cache"
+    safe_clean ~/Library/Application\ Support/Google/Chrome/GraphiteDawnCache/* "Chrome Dawn cache"
     local _chrome_profile
     for _chrome_profile in "$HOME/Library/Application Support/Google/Chrome"/*/; do
         clean_service_worker_cache "Chrome" "$_chrome_profile/Service Worker/CacheStorage"
