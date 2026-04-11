@@ -839,6 +839,25 @@ func (m model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.status = fmt.Sprintf("Showing %s in Finder...", selected.Name)
 			}
 		}
+	case "p", "P":
+		// Quick Look preview (single file only, no multi-select).
+		if m.showLargeFiles {
+			if len(m.largeFiles) > 0 {
+				selected := m.largeFiles[m.largeSelected]
+				go func(path string) {
+					_ = safePreview(path)
+				}(selected.Path)
+				m.status = fmt.Sprintf("Previewing %s...", selected.Name)
+			}
+		} else if len(m.entries) > 0 {
+			selected := m.entries[m.selected]
+			if !selected.IsDir {
+				go func(path string) {
+					_ = safePreview(path)
+				}(selected.Path)
+				m.status = fmt.Sprintf("Previewing %s...", selected.Name)
+			}
+		}
 	case " ":
 		// Toggle multi-select (paths as keys).
 		if m.showLargeFiles {
@@ -1231,4 +1250,14 @@ func safeOpen(path string, reveal bool) error {
 		args = []string{"-R", path}
 	}
 	return exec.CommandContext(ctx, "open", args...).Run()
+}
+
+// safePreview opens the file with the default macOS application.
+func safePreview(path string) error {
+	if err := validatePath(path); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), openCommandTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, "open", path).Run()
 }
