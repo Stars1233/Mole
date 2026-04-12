@@ -722,6 +722,7 @@ batch_uninstall_applications() {
                     echo -e "  ${YELLOW}${ICON_WARNING}${NC} Could not remove: ${_lpath/$HOME/~}"
                 done
                 total_kb=$((total_kb - leftover_kb))
+                ((total_kb < 0)) && total_kb=0
             fi
 
             total_size_freed=$((total_size_freed + total_kb))

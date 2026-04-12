@@ -96,7 +96,7 @@ EOF
 # Dev Tools tests
 # ============================================================================
 
-@test "check_dev_tools detects missing tools" {
+@test "check_dev_tools reports found tools" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -116,7 +116,10 @@ check_dev_tools
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"not found"* ]]
+    [[ "$output" == *"Dev Tools"* ]]
+    [[ "$output" == *"found"* ]]
+    [[ "$output" != *"docker"* ]]
+    [[ "$output" != *"not found"* ]]
 }
 
 # ============================================================================
@@ -221,6 +224,6 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Launch Agents"* || "$output" == *"All healthy"* ]]
-    [[ "$output" == *"Dev Tools"* || "$output" == *"All present"* ]]
+    [[ "$output" == *"Dev Tools"* ]]
     [[ "$output" == *"Versions"* || "$output" == *"No conflicts"* ]]
 }

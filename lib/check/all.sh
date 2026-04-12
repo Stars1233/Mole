@@ -141,8 +141,8 @@ check_firewall() {
         return
     fi
 
-    # Fall back to macOS built-in firewall check
-    local firewall_output=$(sudo /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2> /dev/null || echo "")
+    # Fall back to macOS built-in firewall check (no sudo needed for read-only query)
+    local firewall_output=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2> /dev/null || echo "")
     if [[ "$firewall_output" == *"State = 1"* ]] || [[ "$firewall_output" == *"State = 2"* ]]; then
         echo -e "  ${GREEN}✓${NC} Firewall     Network protection enabled"
     else

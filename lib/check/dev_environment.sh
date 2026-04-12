@@ -76,22 +76,22 @@ check_dev_tools() {
     # Check whitelist
     if command -v is_whitelisted > /dev/null && is_whitelisted "check_dev_tools"; then return; fi
 
-    local -a tools=(git node python3 brew docker go xcode-select)
-    local -a missing=()
+    local -a tools=(git node python3 brew go xcode-select)
+    local -a found=()
 
     for tool in "${tools[@]}"; do
-        if ! command -v "$tool" > /dev/null 2>&1; then
-            missing+=("$tool")
+        if command -v "$tool" > /dev/null 2>&1; then
+            found+=("$tool")
         fi
     done
 
-    if [[ ${#missing[@]} -eq 0 ]]; then
-        echo -e "  ${GREEN}✓${NC} Dev Tools      All present"
+    if [[ ${#found[@]} -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} Dev Tools      None detected"
     else
-        local missing_list
-        missing_list=$(printf '%s, ' "${missing[@]}")
-        missing_list="${missing_list%, }"
-        printf "  ${GRAY}%s${NC} %-14s ${YELLOW}%s${NC}\n" "$ICON_WARNING" "Dev Tools" "${#missing[@]} not found (${missing_list})"
+        local found_list
+        found_list=$(printf '%s, ' "${found[@]}")
+        found_list="${found_list%, }"
+        echo -e "  ${GREEN}✓${NC} Dev Tools      ${#found[@]} found (${found_list})"
     fi
 }
 

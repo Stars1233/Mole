@@ -135,7 +135,7 @@ EOF
     items+=('launch_services_rebuild|LaunchServices Repair|Repair "Open with" menu & file associations|true')
     items+=('font_cache_rebuild|Font Cache Rebuild|Rebuild font database to fix rendering issues (skips if browsers are running)|true')
     items+=('dock_refresh|Dock Refresh|Fix broken icons and visual glitches in the Dock|true')
-    items+=('prevent_network_dsstore|Prevent Finder .DS_Store|Set a persistent Finder preference to stop writing .DS_Store on SMB/AFP/NFS and USB volumes|false')
+    items+=('prevent_network_dsstore|Prevent Finder .DS_Store|Set a persistent Finder preference to stop writing .DS_Store on SMB/AFP/NFS and USB volumes|true')
 
     # System performance optimizations (auto-run, non-destructive)
     items+=('memory_pressure_relief|Memory Optimization|Release inactive memory to improve system responsiveness|true')
@@ -148,11 +148,11 @@ EOF
     items+=('disk_verify|Disk Health|Verify filesystem integrity|true')
     items+=('login_items_audit|Login Items|Audit login items for broken entries|true')
 
-    # Destructive optimizations (require user confirmation before running)
-    items+=('quarantine_cleanup|Quarantine Database Cleanup|Clear Gatekeeper download tracking history|false')
-    items+=('launch_agents_cleanup|Launch Agents Cleanup|Remove broken LaunchAgents whose binaries no longer exist|false')
-    items+=('notification_cleanup|Notifications|Clean old delivered notifications to reduce database bloat|false')
-    items+=('coreduet_cleanup|Usage Data|Clean old usage tracking data|false')
+    # System database cleanup (auto-run, low risk)
+    items+=('quarantine_cleanup|Quarantine Database Cleanup|Clear Gatekeeper download tracking history|true')
+    items+=('launch_agents_cleanup|Launch Agents Cleanup|Remove broken LaunchAgents whose binaries no longer exist|true')
+    items+=('notification_cleanup|Notifications|Clean old delivered notifications to reduce database bloat|true')
+    items+=('coreduet_cleanup|Usage Data|Clean old usage tracking data|true')
 
     # Removed high-risk optimizations:
     # - startup_items_cleanup: Risk of deleting legitimate app helpers

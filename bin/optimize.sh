@@ -143,14 +143,13 @@ run_system_checks() {
 
 show_optimization_summary() {
     local safe_count="${OPTIMIZE_SAFE_COUNT:-0}"
-    local confirm_count="${OPTIMIZE_CONFIRM_COUNT:-0}"
-    if ((safe_count == 0 && confirm_count == 0)) && [[ -z "${AUTO_FIX_SUMMARY:-}" ]]; then
+    if ((safe_count == 0)) && [[ -z "${AUTO_FIX_SUMMARY:-}" ]]; then
         return
     fi
 
     local summary_title
     local -a summary_details=()
-    local total_applied=$((safe_count + confirm_count))
+    local total_applied=$safe_count
 
     if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
         summary_title="Dry Run Complete, No Changes Made"
@@ -507,23 +506,14 @@ main() {
         fi
     fi
 
-    local -a safe_items=()
-    local -a confirm_items=()
+    local -a items=()
     local opts_file
     opts_file=$(mktemp_file)
     parse_optimization_items "$health_json" > "$opts_file"
 
     while IFS='|' read -r action name desc safe; do
         [[ -z "$action" ]] && continue
-
-        local path=""
-        local item="${name}|${desc}|${action}|${path}"
-
-        if [[ "$safe" == "true" ]]; then
-            safe_items+=("$item")
-        else
-            confirm_items+=("$item")
-        fi
+        items+=("${name}|${desc}|${action}|")
     done < "$opts_file"
 
     echo ""
@@ -532,52 +522,18 @@ main() {
     fi
 
     export FIRST_ACTION=true
-    if [[ ${#safe_items[@]} -gt 0 ]]; then
-        for item in "${safe_items[@]}"; do
-            IFS='|' read -r name desc action path <<< "$item"
-            announce_action "$name" "$desc" "safe"
-            execute_optimization "$action" "$path"
-        done
-    fi
+    for item in "${items[@]}"; do
+        IFS='|' read -r name desc action path <<< "$item"
+        announce_action "$name" "$desc" "safe"
+        execute_optimization "$action" "$path"
+    done
 
-    if [[ ${#confirm_items[@]} -gt 0 ]]; then
-        echo ""
-        local confirm_names=()
-        for item in "${confirm_items[@]}"; do
-            IFS='|' read -r name _ _ _ <<< "$item"
-            confirm_names+=("$name")
-        done
-        local joined
-        joined=$(printf '%s, ' "${confirm_names[@]}")
-        joined="${joined%, }"
-        echo -ne "${PURPLE}${ICON_ARROW}${NC} Run ${#confirm_items[@]} extra tasks (${joined})? ${GREEN}Enter${NC} yes, ${GRAY}ESC${NC} skip: "
-        drain_pending_input
-        local key=""
-        IFS= read -r -s -n1 key || key=""
-        drain_pending_input
-        echo ""
-        case "$key" in
-            "" | $'\n' | $'\r' | y | Y)
-                for item in "${confirm_items[@]}"; do
-                    IFS='|' read -r name desc action path <<< "$item"
-                    announce_action "$name" "$desc" "confirm"
-                    execute_optimization "$action" "$path"
-                done
-                ;;
-            *)
-                echo -e "${GRAY}  Skipped ${#confirm_items[@]} optional task(s)${NC}"
-                confirm_items=()
-                ;;
-        esac
-    fi
-
-    local safe_count=${#safe_items[@]}
-    local confirm_count=${#confirm_items[@]}
+    local safe_count=${#items[@]}
 
     run_system_checks
 
     export OPTIMIZE_SAFE_COUNT=$safe_count
-    export OPTIMIZE_CONFIRM_COUNT=$confirm_count
+    export OPTIMIZE_CONFIRM_COUNT=0
 
     show_optimization_summary
 

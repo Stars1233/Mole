@@ -699,12 +699,12 @@ func measureOverviewSize(path string) (int64, error) {
 		excludePath = filepath.Join(home, "Library")
 	}
 
-	if duSize, err := getDirectorySizeFromDuWithExclude(path, excludePath); err == nil && duSize > 0 {
+	if duSize, err := getDirectorySizeFromDuWithExclude(path, excludePath); err == nil {
 		_ = storeOverviewSize(path, duSize)
 		return duSize, nil
 	}
 
-	if logicalSize, err := getDirectoryLogicalSizeWithExclude(path, excludePath); err == nil && logicalSize > 0 {
+	if logicalSize, err := getDirectoryLogicalSizeWithExclude(path, excludePath); err == nil {
 		_ = storeOverviewSize(path, logicalSize)
 		return logicalSize, nil
 	}

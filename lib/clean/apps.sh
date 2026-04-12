@@ -623,8 +623,10 @@ clean_orphaned_system_services() {
         else
             orphaned_kb_display="${total_orphaned_kb}KB"
         fi
-        echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Cleaned $orphaned_count orphaned services, about $orphaned_kb_display"
-        note_activity
+        if [[ "${DRY_RUN:-false}" != "true" ]]; then
+            echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Cleaned $orphaned_count orphaned services, about $orphaned_kb_display"
+            note_activity
+        fi
     fi
 
 }

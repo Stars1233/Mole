@@ -1042,8 +1042,14 @@ opt_disk_verify() {
         return 0
     fi
 
+    if [[ -t 1 ]]; then
+        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Verifying disk filesystem..."
+    fi
     local output
-    output=$(diskutil verifyVolume / 2>&1 || true)
+    output=$(run_with_timeout 30 diskutil verifyVolume / 2>&1 || true)
+    if [[ -t 1 ]]; then
+        stop_inline_spinner
+    fi
 
     if echo "$output" | grep -qi "appears to be OK\|volume appears to be ok"; then
         opt_msg "Disk filesystem verified OK"
@@ -1108,6 +1114,29 @@ opt_coreduet_cleanup() {
 }
 
 # Audit login items for broken entries referencing missing apps.
+# Check if a login item name corresponds to an installed app.
+# Login item names often differ from .app bundle names (e.g. "AliLangClient" -> "AliLang.app",
+# "Top Calendar" -> "TopCalendar.app"), so we try multiple matching strategies.
+_login_item_app_exists() {
+    local name="$1"
+    # 1. Exact match
+    if mdfind "kMDItemFSName == '${name}.app'" 2> /dev/null | grep -q .; then
+        return 0
+    fi
+    # 2. Try without spaces (e.g. "Top Calendar" -> "TopCalendar")
+    local nospace="${name// /}"
+    if [[ "$nospace" != "$name" ]] && mdfind "kMDItemFSName == '${nospace}.app'" 2> /dev/null | grep -q .; then
+        return 0
+    fi
+    # 3. Strip common helper suffixes (e.g. "AliLangClient" -> "AliLang")
+    local stripped
+    stripped=$(echo "$nospace" | sed -E 's/(Client|Helper|Agent|Launcher|Service)$//')
+    if [[ "$stripped" != "$nospace" ]] && mdfind "kMDItemFSName == '${stripped}.app'" 2> /dev/null | grep -q .; then
+        return 0
+    fi
+    return 1
+}
+
 opt_login_items_audit() {
     if [[ "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
         opt_msg "Login items audit · skipped in test mode"
@@ -1136,10 +1165,11 @@ opt_login_items_audit() {
         # Skip items with single quotes to avoid breaking the mdfind query string
         [[ "$item" == *"'"* ]] && continue
         checked=$((checked + 1))
-        if ! mdfind "kMDItemFSName == '${item}.app'" 2> /dev/null | grep -q .; then
-            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Broken login item: $item (app not found)"
-            broken=$((broken + 1))
+        if _login_item_app_exists "$item"; then
+            continue
         fi
+        echo -e "  ${YELLOW}${ICON_WARNING}${NC} Broken login item: $item (app not found)"
+        broken=$((broken + 1))
     done
 
     if [[ $broken -eq 0 ]]; then
