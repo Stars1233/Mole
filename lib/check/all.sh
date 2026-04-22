@@ -863,6 +863,54 @@ check_brew_health() {
     fi
 }
 
+check_nonstandard_apps() {
+    if command -v is_whitelisted > /dev/null && is_whitelisted "check_nonstandard_apps"; then return; fi
+
+    if ! command -v pkgutil > /dev/null 2>&1; then
+        return
+    fi
+
+    local -a nonstandard_apps=()
+    while IFS= read -r pkg_id; do
+        [[ "$pkg_id" =~ ^com\.apple\. ]] && continue
+
+        local pkg_files
+        pkg_files=$(pkgutil --files "$pkg_id" 2> /dev/null | grep '\.app$' || true)
+        [[ -z "$pkg_files" ]] && continue
+
+        while IFS= read -r rel_path; do
+            [[ -z "$rel_path" ]] && continue
+            local app_path="/$rel_path"
+
+            case "$app_path" in
+                /usr/local/*.app | /opt/*.app)
+                    if [[ -d "$app_path" ]]; then
+                        local app_name="${app_path##*/}"
+                        app_name="${app_name%.app}"
+                        nonstandard_apps+=("$app_name")
+                    fi
+                    ;;
+            esac
+        done <<< "$pkg_files"
+    done < <(pkgutil --pkgs 2> /dev/null || true)
+
+    local count=${#nonstandard_apps[@]}
+    if [[ $count -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} Pkg Apps     None in non-standard paths"
+        return
+    fi
+
+    local s=""
+    ((count > 1)) && s="s"
+    echo -e "  ${GRAY}${ICON_INFO}${NC} Pkg Apps     ${BLUE}${count} app${s}${NC} in /usr/local or /opt"
+    local preview="${nonstandard_apps[0]}"
+    ((count > 1)) && preview="${preview}, ${nonstandard_apps[1]}"
+    ((count > 2)) && preview="${preview}, ${nonstandard_apps[2]}"
+    ((count > 3)) && preview="${preview} +$((count - 3))"
+    echo -e "    ${GRAY}${preview}${NC}"
+    echo -e "    ${GRAY}Run 'mo uninstall' to manage these apps${NC}"
+}
+
 check_system_health() {
     echo -e "${BLUE}${ICON_ARROW}${NC} System Health"
     check_disk_space
@@ -872,6 +920,7 @@ check_system_health() {
     check_disk_smart
     check_orphan_launch_agents
     check_brew_health
+    check_nonstandard_apps
     check_cache_size
     # Time Machine check is optional; skip by default to avoid noise on systems without backups
 }

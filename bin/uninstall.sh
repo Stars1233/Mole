@@ -495,6 +495,56 @@ scan_applications() {
         shopt -u nullglob
     fi
 
+    # Scan for pkg-installed apps in non-standard locations
+    if command -v pkgutil > /dev/null 2>&1; then
+        while IFS= read -r pkg_id; do
+            # Skip Apple system packages
+            [[ "$pkg_id" =~ ^com\.apple\. ]] && continue
+
+            # Get files from this package
+            local pkg_files
+            pkg_files=$(pkgutil --files "$pkg_id" 2> /dev/null | grep '\.app$' || true)
+
+            [[ -z "$pkg_files" ]] && continue
+
+            while IFS= read -r rel_path; do
+                [[ -z "$rel_path" ]] && continue
+
+                # pkgutil --files returns paths relative to /
+                local app_path="/$rel_path"
+
+                # Only include apps in /usr/local/* or /opt/*
+                case "$app_path" in
+                    /usr/local/*.app | /opt/*.app)
+                        [[ -d "$app_path" ]] || continue
+
+                        # Skip if already in standard scan dirs
+                        local already_scanned=false
+                        for app_dir in "${app_dirs[@]}"; do
+                            if [[ "$app_path" == "$app_dir"/*.app ]]; then
+                                already_scanned=true
+                                break
+                            fi
+                        done
+                        [[ "$already_scanned" == true ]] && continue
+
+                        local app_name="${app_path##*/}"
+                        app_name="${app_name%.app}"
+
+                        local app_mtime
+                        app_mtime=$(get_file_mtime "$app_path")
+
+                        local cached_identity cached_bundle_id cached_display_name
+                        cached_identity=$(lookup_cached_identity "$app_path" "$app_mtime")
+                        IFS='|' read -r cached_bundle_id cached_display_name <<< "$cached_identity"
+
+                        app_data_tuples+=("${app_path}|${app_name}|${app_mtime}|${cached_bundle_id}|${cached_display_name}")
+                        ;;
+                esac
+            done <<< "$pkg_files"
+        done < <(pkgutil --pkgs 2> /dev/null || true)
+    fi
+
     for app_dir in "${app_dirs[@]}"; do
         if [[ ! -d "$app_dir" ]]; then continue; fi
 
