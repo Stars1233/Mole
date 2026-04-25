@@ -81,9 +81,11 @@ is_homebrew_install() {
     fi
 
     if [[ -f "$mole_path" ]]; then
+        # Paths are quoted so Homebrew bottle relocation cannot break parsing
+        # when the prefix contains spaces (e.g. Applite under "Application Support").
         case "$mole_path" in
-            /opt/homebrew/bin/mole | /usr/local/bin/mole)
-                if [[ -d /opt/homebrew/Cellar/mole ]] || [[ -d /usr/local/Cellar/mole ]]; then
+            "/opt/homebrew/bin/mole" | "/usr/local/bin/mole")
+                if [[ -d "/opt/homebrew/Cellar/mole" ]] || [[ -d "/usr/local/Cellar/mole" ]]; then
                     if $has_brew; then
                         brew list mole > /dev/null 2>&1 && return 0
                     else

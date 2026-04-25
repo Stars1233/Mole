@@ -57,9 +57,10 @@ is_brew_cask_installed() {
 _extract_cask_token_from_path() {
     local path="$1"
 
-    # Check if path is inside Caskroom
+    # Check if path is inside Caskroom. Quote literals so Homebrew bottle
+    # relocation cannot break parsing when the prefix contains spaces.
     case "$path" in
-        /opt/homebrew/Caskroom/* | /usr/local/Caskroom/*) ;;
+        "/opt/homebrew/Caskroom/"* | "/usr/local/Caskroom/"*) ;;
         *) return 1 ;;
     esac
 
