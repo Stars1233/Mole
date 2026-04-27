@@ -501,6 +501,112 @@ EOF
     [[ "$output" == *"Periodic maintenance triggered"* ]]
 }
 
+@test "run_optimize_diagnostics flags sustained CloudShell as primary bottleneck" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+        MOLE_OPTIMIZE_PS_SAMPLE_1=$'120 /Applications/AliEntSafe.app/Contents/Services/CloudShell.app/Contents/MacOS/CloudShell --type=event-capture\n35 /usr/libexec/syspolicyd\n20 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer' \
+        MOLE_OPTIMIZE_PS_SAMPLE_2=$'140 /Applications/AliEntSafe.app/Contents/Services/CloudShell.app/Contents/MacOS/CloudShell --type=event-processor\n30 /usr/libexec/syspolicyd\n18 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() { return 1; }
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Likely bottleneck: CloudShell / AliEntSafe"* ]]
+    [[ "$output" == *"Mole will not terminate enterprise security processes"* ]]
+}
+
+@test "run_optimize_diagnostics treats CoreSimulator images as informational for syspolicyd" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+        MOLE_OPTIMIZE_PS_SAMPLE_1=$'55 /usr/libexec/syspolicyd\n12 /usr/libexec/diskimagesiod' \
+        MOLE_OPTIMIZE_PS_SAMPLE_2=$'60 /usr/libexec/syspolicyd\n10 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/bin/simdiskimaged' \
+        MOLE_OPTIMIZE_SPCTL_STATUS="assessments enabled" \
+        MOLE_OPTIMIZE_HDIUTIL_INFO=$'================================================\nimage-path      : /System/Library/AssetsV2/com_apple_MobileAsset_iOSSimulatorRuntime/example.asset/AssetData/Restore/000.dmg\n/dev/disk8s1\t/Library/Developer/CoreSimulator/Volumes/iOS_23E244\n' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() { return 1; }
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Likely bottleneck: syspolicyd"* ]]
+    [[ "$output" == *"Gatekeeper status: assessments enabled"* ]]
+    [[ "$output" == *"Only system-managed CoreSimulator images are mounted"* ]]
+    [[ "$output" != *"Mounted image detach candidates"* ]]
+}
+
+@test "run_optimize_diagnostics suppresses one-off CPU spikes" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+        MOLE_OPTIMIZE_PS_SAMPLE_1=$'180 /Applications/AliEntSafe.app/Contents/Services/CloudShell.app/Contents/MacOS/CloudShell --type=event-capture' \
+        MOLE_OPTIMIZE_PS_SAMPLE_2=$'5 /Applications/AliEntSafe.app/Contents/Services/CloudShell.app/Contents/MacOS/CloudShell --type=event-capture' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() { return 1; }
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No obvious sustained high-CPU bottleneck detected"* ]]
+}
+
+@test "run_optimize_diagnostics lists user-mounted image detach candidates in dry-run" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_DRY_RUN=1 \
+        MOLE_OPTIMIZE_PS_SAMPLE_1=$'1 /usr/sbin/distnoted' \
+        MOLE_OPTIMIZE_PS_SAMPLE_2=$'1 /usr/sbin/distnoted' \
+        MOLE_OPTIMIZE_HDIUTIL_INFO=$'================================================\nimage-path      : /Users/test/Downloads/TestInstaller.dmg\n/dev/disk14s1\t/Volumes/Test Installer\n' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() { return 1; }
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Mounted image detach candidates:"* ]]
+    [[ "$output" == *"/Volumes/Test Installer"* ]]
+    [[ "$output" == *"Would offer detach for 1 mounted image"* ]]
+}
+
+@test "run_optimize_diagnostics skips protected mounted images" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_DRY_RUN=1 \
+        MOLE_OPTIMIZE_HDIUTIL_INFO=$'================================================\nimage-path      : /Users/test/Downloads/KeepMe.dmg\n/dev/disk15s1\t/Volumes/KeepMe\n' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() {
+    [[ "$1" == "/Volumes/KeepMe" ]]
+}
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Mounted image detach candidates:"* ]]
+}
+
+@test "run_optimize_diagnostics stays quiet when nothing matches" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+        MOLE_OPTIMIZE_PS_SAMPLE_1=$'4 /usr/sbin/distnoted\n3 /usr/libexec/coreaudiod' \
+        MOLE_OPTIMIZE_PS_SAMPLE_2=$'5 /usr/sbin/distnoted\n2 /usr/libexec/coreaudiod' \
+        bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/diagnostics.sh"
+is_path_whitelisted() { return 1; }
+run_optimize_diagnostics
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No obvious sustained high-CPU bottleneck detected"* ]]
+}
+
 @test "opt_periodic_maintenance skips when periodic command missing" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
 set -euo pipefail
