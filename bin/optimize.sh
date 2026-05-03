@@ -81,7 +81,7 @@ parse_optimization_items() {
         val = $0; sub(/.*"safe"[[:space:]]*:[[:space:]]*/, "", val); sub(/[^a-z].*/, "", val); safe = val
     }
     /}/ { if (in_obj && action != "") print action "|" name "|" desc "|" safe; in_obj=0 }
-    ' <<< "$json"
+    ' <<<"$json"
 }
 
 run_system_checks() {
@@ -229,12 +229,12 @@ announce_action() {
 
 touchid_configured() {
     local pam_file="/etc/pam.d/sudo"
-    [[ -f "$pam_file" ]] && grep -q "pam_tid.so" "$pam_file" 2> /dev/null
+    [[ -f "$pam_file" ]] && grep -q "pam_tid.so" "$pam_file" 2>/dev/null
 }
 
 touchid_supported() {
-    if command -v bioutil > /dev/null 2>&1; then
-        if bioutil -r 2> /dev/null | grep -qi "Touch ID"; then
+    if command -v bioutil >/dev/null 2>&1; then
+        if bioutil -r 2>/dev/null | grep -qi "Touch ID"; then
             return 0
         fi
     fi
@@ -322,7 +322,7 @@ ask_for_security_fixes() {
     echo ""
     echo -e "${BLUE}SECURITY FIXES${NC}"
     for entry in "${SECURITY_FIXES[@]}"; do
-        IFS='|' read -r _ label <<< "$entry"
+        IFS='|' read -r _ label <<<"$entry"
         echo -e "  ${ICON_LIST} $label"
     done
     echo ""
@@ -349,7 +349,7 @@ ask_for_security_fixes() {
 }
 
 apply_firewall_fix() {
-    if sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on > /dev/null 2>&1; then
+    if sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on >/dev/null 2>&1; then
         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Firewall enabled"
         FIREWALL_DISABLED=false
         return 0
@@ -373,14 +373,14 @@ perform_security_fixes() {
 
     local applied=0
     for entry in "${SECURITY_FIXES[@]}"; do
-        IFS='|' read -r action _ <<< "$entry"
+        IFS='|' read -r action _ <<<"$entry"
         case "$action" in
-            firewall)
-                apply_firewall_fix && ((applied++))
-                ;;
-            touchid)
-                apply_touchid_fix && ((applied++))
-                ;;
+        firewall)
+            apply_firewall_fix && ((applied++))
+            ;;
+        touchid)
+            apply_touchid_fix && ((applied++))
+            ;;
         esac
     done
 
@@ -391,7 +391,7 @@ perform_security_fixes() {
 }
 
 cleanup_all() {
-    stop_inline_spinner 2> /dev/null || true
+    stop_inline_spinner 2>/dev/null || true
     stop_sudo_session
     cleanup_temp_files
     # Log session end
@@ -410,20 +410,20 @@ main() {
     local health_json
     for arg in "$@"; do
         case "$arg" in
-            "--help" | "-h")
-                show_optimize_help
-                exit 0
-                ;;
-            "--debug")
-                export MO_DEBUG=1
-                ;;
-            "--dry-run")
-                export MOLE_DRY_RUN=1
-                ;;
-            "--whitelist")
-                manage_whitelist "optimize"
-                exit 0
-                ;;
+        "--help" | "-h")
+            show_optimize_help
+            exit 0
+            ;;
+        "--debug")
+            export MO_DEBUG=1
+            ;;
+        "--dry-run")
+            export MOLE_DRY_RUN=1
+            ;;
+        "--whitelist")
+            manage_whitelist "optimize"
+            exit 0
+            ;;
         esac
     done
 
@@ -442,7 +442,7 @@ main() {
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, No files will be modified\n"
     fi
 
-    if ! command -v bc > /dev/null 2>&1; then
+    if ! command -v bc >/dev/null 2>&1; then
         echo -e "${YELLOW}${ICON_ERROR}${NC} Missing dependency: bc"
         echo -e "${GRAY}Install with: ${GREEN}brew install bc${NC}"
         exit 1
@@ -452,7 +452,7 @@ main() {
         start_inline_spinner "Collecting system info..."
     fi
 
-    if ! health_json=$(generate_health_json 2> /dev/null); then
+    if ! health_json=$(generate_health_json 2>/dev/null); then
         if [[ -t 1 ]]; then
             stop_inline_spinner
         fi
@@ -475,8 +475,6 @@ main() {
         stop_inline_spinner
     fi
 
-    show_system_health "$health_json"
-
     load_whitelist "optimize"
     if [[ ${#CURRENT_WHITELIST_PATTERNS[@]} -gt 0 ]]; then
         local count=${#CURRENT_WHITELIST_PATTERNS[@]}
@@ -489,17 +487,19 @@ main() {
         fi
     fi
 
+    show_system_health "$health_json"
+
     run_optimize_diagnostics
 
     local -a items=()
     local opts_file
     opts_file=$(mktemp_file)
-    parse_optimization_items "$health_json" > "$opts_file"
+    parse_optimization_items "$health_json" >"$opts_file"
 
     while IFS='|' read -r action name desc safe; do
         [[ -z "$action" ]] && continue
         items+=("${name}|${desc}|${action}|")
-    done < "$opts_file"
+    done <"$opts_file"
 
     echo ""
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
@@ -508,7 +508,11 @@ main() {
 
     export FIRST_ACTION=true
     for item in "${items[@]}"; do
-        IFS='|' read -r name desc action path <<< "$item"
+        IFS='|' read -r name desc action path <<<"$item"
+        if command -v is_whitelisted >/dev/null && is_whitelisted "$action"; then
+            opt_msg "Skipped (whitelisted): $name"
+            continue
+        fi
         announce_action "$name" "$desc" "safe"
         execute_optimization "$action" "$path"
     done

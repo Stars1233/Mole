@@ -26,7 +26,7 @@ clean_tool_cache() {
         if [[ -t 1 ]]; then
             start_section_spinner "Cleaning $description..."
         fi
-        if "$@" > /dev/null 2>&1; then
+        if "$@" >/dev/null 2>&1; then
             command_succeeded=true
         fi
         if [[ -t 1 ]]; then
@@ -45,9 +45,9 @@ clean_dev_npm() {
     local npm_default_cache="$HOME/.npm"
     local npm_cache_path="$npm_default_cache"
 
-    if command -v npm > /dev/null 2>&1; then
+    if command -v npm >/dev/null 2>&1; then
         start_section_spinner "Checking npm cache path..."
-        npm_cache_path=$(run_with_timeout 2 npm config get cache 2> /dev/null) || npm_cache_path=""
+        npm_cache_path=$(run_with_timeout 2 npm config get cache 2>/dev/null) || npm_cache_path=""
         stop_section_spinner
 
         if [[ -z "$npm_cache_path" || "$npm_cache_path" != /* ]]; then
@@ -72,10 +72,10 @@ clean_dev_npm() {
     local npm_cache_path_normalized="${npm_cache_path%/}"
     local npm_default_cache_normalized="${npm_default_cache%/}"
     if [[ -d "$npm_cache_path_normalized" ]]; then
-        npm_cache_path_normalized=$(cd "$npm_cache_path_normalized" 2> /dev/null && pwd -P) || npm_cache_path_normalized="${npm_cache_path%/}"
+        npm_cache_path_normalized=$(cd "$npm_cache_path_normalized" 2>/dev/null && pwd -P) || npm_cache_path_normalized="${npm_cache_path%/}"
     fi
     if [[ -d "$npm_default_cache_normalized" ]]; then
-        npm_default_cache_normalized=$(cd "$npm_default_cache_normalized" 2> /dev/null && pwd -P) || npm_default_cache_normalized="${npm_default_cache%/}"
+        npm_default_cache_normalized=$(cd "$npm_default_cache_normalized" 2>/dev/null && pwd -P) || npm_default_cache_normalized="${npm_default_cache%/}"
     fi
 
     # Clean custom npm cache path (if different from default)
@@ -88,10 +88,10 @@ clean_dev_npm() {
     # Clean pnpm store cache
     local pnpm_default_store=~/Library/pnpm/store
     # Check if pnpm is actually usable (not just Corepack shim)
-    if command -v pnpm > /dev/null 2>&1 && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm --version > /dev/null 2>&1; then
+    if command -v pnpm >/dev/null 2>&1 && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm --version >/dev/null 2>&1; then
         local pnpm_store_path
         start_section_spinner "Checking store path..."
-        pnpm_store_path=$(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout 2 pnpm store path 2> /dev/null) || pnpm_store_path=""
+        pnpm_store_path=$(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout 2 pnpm store path 2>/dev/null) || pnpm_store_path=""
         stop_section_spinner
 
         local pnpm_cache_check="$pnpm_default_store"
@@ -111,9 +111,9 @@ clean_dev_npm() {
     local bun_cache_path="$bun_default_cache"
     local bun_cache_cleaned=false
     local bun_dry_run="${DRY_RUN:-false}"
-    if command -v bun > /dev/null 2>&1 && bun --version > /dev/null 2>&1; then
+    if command -v bun >/dev/null 2>&1 && bun --version >/dev/null 2>&1; then
         if [[ -t 1 ]]; then start_section_spinner "Checking bun cache path..."; fi
-        bun_cache_path=$(run_with_timeout 2 bun pm cache 2> /dev/null) || bun_cache_path=""
+        bun_cache_path=$(run_with_timeout 2 bun pm cache 2>/dev/null) || bun_cache_path=""
         if [[ -t 1 ]]; then stop_section_spinner; fi
 
         if [[ -z "$bun_cache_path" || "$bun_cache_path" != /* ]]; then
@@ -134,7 +134,7 @@ clean_dev_npm() {
             if [[ -t 1 ]]; then
                 start_section_spinner "Cleaning bun cache..."
             fi
-            if run_with_timeout 10 bun pm cache rm > /dev/null 2>&1; then
+            if run_with_timeout 10 bun pm cache rm >/dev/null 2>&1; then
                 bun_cache_cleaned=true
             fi
             if [[ -t 1 ]]; then
@@ -151,10 +151,10 @@ clean_dev_npm() {
         local bun_cache_path_normalized="${bun_cache_path%/}"
         local bun_default_cache_normalized="${bun_default_cache%/}"
         if [[ -d "$bun_cache_path_normalized" ]]; then
-            bun_cache_path_normalized=$(cd "$bun_cache_path_normalized" 2> /dev/null && pwd -P) || bun_cache_path_normalized="${bun_cache_path%/}"
+            bun_cache_path_normalized=$(cd "$bun_cache_path_normalized" 2>/dev/null && pwd -P) || bun_cache_path_normalized="${bun_cache_path%/}"
         fi
         if [[ -d "$bun_default_cache_normalized" ]]; then
-            bun_default_cache_normalized=$(cd "$bun_default_cache_normalized" 2> /dev/null && pwd -P) || bun_default_cache_normalized="${bun_default_cache%/}"
+            bun_default_cache_normalized=$(cd "$bun_default_cache_normalized" 2>/dev/null && pwd -P) || bun_default_cache_normalized="${bun_default_cache%/}"
         fi
 
         if [[ "$bun_cache_path_normalized" != "$bun_default_cache_normalized" ]]; then
@@ -178,9 +178,9 @@ clean_dev_npm() {
 # Python/pip ecosystem caches.
 clean_dev_python() {
     # Check pip3 is functional (not just macOS stub that triggers CLT install dialog)
-    if command -v pip3 > /dev/null 2>&1 && pip3 --version > /dev/null 2>&1; then
+    if command -v pip3 >/dev/null 2>&1 && pip3 --version >/dev/null 2>&1; then
         local pip_cache_path
-        pip_cache_path=$(run_with_timeout 2 pip3 cache dir 2> /dev/null) || pip_cache_path=""
+        pip_cache_path=$(run_with_timeout 2 pip3 cache dir 2>/dev/null) || pip_cache_path=""
         if [[ -z "$pip_cache_path" || "$pip_cache_path" != /* ]]; then
             pip_cache_path="$HOME/Library/Caches/pip"
         fi
@@ -203,11 +203,11 @@ clean_dev_python() {
 }
 # Go build/module caches.
 clean_dev_go() {
-    command -v go > /dev/null 2>&1 || return 0
+    command -v go >/dev/null 2>&1 || return 0
 
     local go_build_cache go_mod_cache
-    go_build_cache=$(go env GOCACHE 2> /dev/null || echo "$HOME/Library/Caches/go-build")
-    go_mod_cache=$(go env GOMODCACHE 2> /dev/null || echo "$HOME/go/pkg/mod")
+    go_build_cache=$(go env GOCACHE 2>/dev/null || echo "$HOME/Library/Caches/go-build")
+    go_mod_cache=$(go env GOMODCACHE 2>/dev/null || echo "$HOME/go/pkg/mod")
 
     local build_protected=false mod_protected=false
     is_path_whitelisted "$go_build_cache" && build_protected=true
@@ -240,9 +240,9 @@ get_mise_cache_path() {
         return 0
     fi
 
-    if command -v mise > /dev/null 2>&1; then
+    if command -v mise >/dev/null 2>&1; then
         local mise_cache_path
-        mise_cache_path=$(run_with_timeout 2 mise cache path 2> /dev/null || echo "")
+        mise_cache_path=$(run_with_timeout 2 mise cache path 2>/dev/null || echo "")
         if [[ -n "$mise_cache_path" && "$mise_cache_path" == /* ]]; then
             echo "$mise_cache_path"
             return 0
@@ -256,7 +256,7 @@ clean_dev_mise() {
     local mise_cache_path
     mise_cache_path=$(get_mise_cache_path)
 
-    if command -v mise > /dev/null 2>&1; then
+    if command -v mise >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "mise cache" "$mise_cache_path" bash -c 'mise cache clear > /dev/null 2>&1 || true'
             note_activity
@@ -303,7 +303,7 @@ check_multiple_versions() {
     fi
 
     local count
-    count=$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | wc -l | tr -d ' ')
+    count=$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
 
     if [[ "$count" -gt 1 ]]; then
         note_activity
@@ -317,7 +317,7 @@ check_multiple_versions() {
 
 # Check for multiple Rust toolchains.
 check_rust_toolchains() {
-    command -v rustup > /dev/null 2>&1 || return 0
+    command -v rustup >/dev/null 2>&1 || return 0
 
     check_multiple_versions \
         "$HOME/.rustup/toolchains" \
@@ -326,7 +326,7 @@ check_rust_toolchains() {
 }
 # Docker caches (guarded by daemon check).
 clean_dev_docker() {
-    if command -v docker > /dev/null 2>&1; then
+    if command -v docker >/dev/null 2>&1; then
         note_activity
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Docker unused data · skipped by default"
         echo -e "  ${GRAY}${ICON_REVIEW}${NC} ${GRAY}Review: docker system df${NC}"
@@ -337,7 +337,7 @@ clean_dev_docker() {
 }
 # Nix garbage collection.
 clean_dev_nix() {
-    if command -v nix-collect-garbage > /dev/null 2>&1; then
+    if command -v nix-collect-garbage >/dev/null 2>&1; then
         if [[ "$DRY_RUN" != "true" ]]; then
             clean_tool_cache "Nix garbage collection" "/nix/store" nix-collect-garbage --delete-older-than 30d
         elif is_path_whitelisted "/nix/store"; then
@@ -382,7 +382,7 @@ clean_xcode_documentation_cache() {
     local doc_cache_root="${MOLE_XCODE_DOCUMENTATION_CACHE_DIR:-/Library/Developer/Xcode/DocumentationCache}"
     [[ -d "$doc_cache_root" ]] || return 0
 
-    if pgrep -x "Xcode" > /dev/null 2>&1; then
+    if pgrep -x "Xcode" >/dev/null 2>&1; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode is running, skipping documentation cache cleanup"
         note_activity
         return 0
@@ -391,7 +391,7 @@ clean_xcode_documentation_cache() {
     local -a index_entries=()
     while IFS= read -r -d '' entry; do
         index_entries+=("$entry")
-    done < <(command find "$doc_cache_root" -mindepth 1 -maxdepth 1 \( -name "DeveloperDocumentation.index" -o -name "DeveloperDocumentation*.index" \) -print0 2> /dev/null)
+    done < <(command find "$doc_cache_root" -mindepth 1 -maxdepth 1 \( -name "DeveloperDocumentation.index" -o -name "DeveloperDocumentation*.index" \) -print0 2>/dev/null)
 
     if [[ ${#index_entries[@]} -le 1 ]]; then
         return 0
@@ -403,7 +403,7 @@ clean_xcode_documentation_cache() {
     done < <(
         for entry in "${index_entries[@]}"; do
             local mtime
-            mtime=$(stat -f%m "$entry" 2> /dev/null || echo "0")
+            mtime=$(stat -f%m "$entry" 2>/dev/null || echo "0")
             printf '%s %s\n' "$mtime" "$entry"
         done | sort -rn
     )
@@ -485,7 +485,7 @@ clean_xcode_device_support() {
         # Skip non-directories (e.g. .log files at the top level)
         [[ -d "$entry" ]] || continue
         version_dirs+=("$entry")
-    done < <(command find "$ds_dir" -mindepth 1 -maxdepth 1 -print0 2> /dev/null)
+    done < <(command find "$ds_dir" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
 
     if [[ ${#version_dirs[@]} -gt 0 ]]; then
         # Sort by modification time (most recent first)
@@ -494,7 +494,7 @@ clean_xcode_device_support() {
             sorted_dirs+=("${line#* }")
         done < <(
             for entry in "${version_dirs[@]}"; do
-                printf '%s %s\n' "$(stat -f%m "$entry" 2> /dev/null || echo 0)" "$entry"
+                printf '%s %s\n' "$(stat -f%m "$entry" 2>/dev/null || echo 0)" "$entry"
             done | sort -rn
         )
 
@@ -505,7 +505,7 @@ clean_xcode_device_support() {
             # Calculate total size of stale versions
             local stale_size_kb=0 entry_size_kb
             for stale_entry in "${stale_dirs[@]}"; do
-                entry_size_kb=$(get_path_size_kb "$stale_entry" 2> /dev/null || echo 0)
+                entry_size_kb=$(get_path_size_kb "$stale_entry" 2>/dev/null || echo 0)
                 stale_size_kb=$((stale_size_kb + entry_size_kb))
             done
             local stale_size_human
@@ -546,7 +546,7 @@ _sim_runtime_mount_points() {
         printf '%s\n' "$MOLE_XCODE_SIM_RUNTIME_MOUNT_POINTS"
         return 0
     fi
-    mount 2> /dev/null | command awk '{print $3}' || true
+    mount 2>/dev/null | command awk '{print $3}' || true
 }
 
 _sim_runtime_is_path_in_use() {
@@ -566,9 +566,9 @@ _sim_runtime_size_kb() {
     local target_path="$1"
     local size_kb=0
     if has_sudo_session; then
-        size_kb=$(sudo du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
+        size_kb=$(sudo du -skP "$target_path" 2>/dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
     else
-        size_kb=$(du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
+        size_kb=$(du -skP "$target_path" 2>/dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
     fi
 
     [[ "$size_kb" =~ ^[0-9]+$ ]] || size_kb=0
@@ -585,7 +585,7 @@ clean_xcode_simulator_runtime_volumes() {
         [[ -d "$candidate" ]] || continue
         while IFS= read -r -d '' entry; do
             candidates+=("$entry")
-        done < <(command find "$candidate" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null)
+        done < <(command find "$candidate" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
     done
 
     if [[ ${#candidates[@]} -eq 0 ]]; then
@@ -768,7 +768,7 @@ clean_dev_mobile() {
     clean_xcode_documentation_cache
     clean_xcode_simulator_runtime_volumes
 
-    if command -v xcrun > /dev/null 2>&1; then
+    if command -v xcrun >/dev/null 2>&1; then
         debug_log "Checking for unavailable Xcode simulators"
         local unavailable_before=0
         local unavailable_after=0
@@ -781,12 +781,12 @@ clean_dev_mobile() {
         # Check if simctl is accessible and working; timeout prevents hang when CLT-only.
         local simctl_available=true
         local simctl_probe_ok=false
-        if declare -F xcrun > /dev/null 2>&1; then
-            if xcrun simctl list devices > /dev/null 2>&1; then
+        if declare -F xcrun >/dev/null 2>&1; then
+            if xcrun simctl list devices >/dev/null 2>&1; then
                 simctl_probe_ok=true
             fi
         else
-            if run_with_timeout 2 xcrun simctl list devices > /dev/null 2>&1; then
+            if run_with_timeout 2 xcrun simctl list devices >/dev/null 2>&1; then
                 simctl_probe_ok=true
             fi
         fi
@@ -798,12 +798,12 @@ clean_dev_mobile() {
         fi
 
         if [[ "$simctl_available" == "true" ]]; then
-            unavailable_before=$(xcrun simctl list devices unavailable 2> /dev/null | command awk '/\(unavailable/ { count++ } END { print count+0 }' || echo "0")
+            unavailable_before=$(xcrun simctl list devices unavailable 2>/dev/null | command awk '/\(unavailable/ { count++ } END { print count+0 }' || echo "0")
             [[ "$unavailable_before" =~ ^[0-9]+$ ]] || unavailable_before=0
             while IFS= read -r unavailable_udid; do
                 [[ -n "$unavailable_udid" ]] && unavailable_udids+=("$unavailable_udid")
             done < <(
-                xcrun simctl list devices unavailable 2> /dev/null |
+                xcrun simctl list devices unavailable 2>/dev/null |
                     command sed -nE 's/.*\(([0-9A-Fa-f-]{36})\).*\(unavailable.*/\1/p' || true
             )
             if [[ ${#unavailable_udids[@]} -gt 0 ]]; then
@@ -838,7 +838,7 @@ clean_dev_mobile() {
 
                     if [[ $delete_exit_code -eq 0 ]]; then
                         stop_section_spinner
-                        unavailable_after=$(xcrun simctl list devices unavailable 2> /dev/null | command awk '/\(unavailable/ { count++ } END { print count+0 }' || echo "0")
+                        unavailable_after=$(xcrun simctl list devices unavailable 2>/dev/null | command awk '/\(unavailable/ { count++ } END { print count+0 }' || echo "0")
                         [[ "$unavailable_after" =~ ^[0-9]+$ ]] || unavailable_after=0
 
                         removed_unavailable=$((unavailable_before - unavailable_after))
@@ -947,8 +947,8 @@ clean_dev_mobile() {
 clean_dev_jvm() {
     # Source Maven cleanup module (requires bash for BASH_SOURCE)
     # shellcheck disable=SC1091
-    source "$(dirname "${BASH_SOURCE[0]}")/maven.sh" 2> /dev/null || true
-    if declare -f clean_maven_repository > /dev/null 2>&1; then
+    source "$(dirname "${BASH_SOURCE[0]}")/maven.sh" 2>/dev/null || true
+    if declare -f clean_maven_repository >/dev/null 2>&1; then
         clean_maven_repository
     fi
     safe_clean ~/.sbt/* "SBT cache"
@@ -988,7 +988,7 @@ clean_dev_jetbrains_toolbox() {
     local -a product_dirs=()
     while IFS= read -r -d '' product_dir; do
         product_dirs+=("$product_dir")
-    done < <(command find "$toolbox_root" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null)
+    done < <(command find "$toolbox_root" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 
     if [[ ${#product_dirs[@]} -eq 0 ]]; then
         _restore_whitelist
@@ -1001,7 +1001,7 @@ clean_dev_jetbrains_toolbox() {
             local current_link=""
             local current_real=""
             if [[ -L "$channel_dir/current" ]]; then
-                current_link=$(readlink "$channel_dir/current" 2> /dev/null || true)
+                current_link=$(readlink "$channel_dir/current" 2>/dev/null || true)
                 if [[ -n "$current_link" ]]; then
                     if [[ "$current_link" == /* ]]; then
                         current_real="$current_link"
@@ -1025,7 +1025,7 @@ clean_dev_jetbrains_toolbox() {
                 [[ ! "$name" =~ ^[0-9] ]] && continue
 
                 version_dirs+=("$version_dir")
-            done < <(command find "$channel_dir" -mindepth 1 -maxdepth 1 -type d -print0 2> /dev/null)
+            done < <(command find "$channel_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 
             [[ ${#version_dirs[@]} -eq 0 ]] && continue
 
@@ -1036,7 +1036,7 @@ clean_dev_jetbrains_toolbox() {
             done < <(
                 for version_dir in "${version_dirs[@]}"; do
                     local mtime
-                    mtime=$(stat -f%m "$version_dir" 2> /dev/null || echo "0")
+                    mtime=$(stat -f%m "$version_dir" 2>/dev/null || echo "0")
                     printf '%s %s\n' "$mtime" "$version_dir"
                 done | sort -rn
             )
@@ -1056,7 +1056,7 @@ clean_dev_jetbrains_toolbox() {
                 note_activity
                 idx=$((idx + 1))
             done
-        done < <(command find "$product_dir" -mindepth 1 -maxdepth 1 -type d -name "ch-*" -print0 2> /dev/null)
+        done < <(command find "$product_dir" -mindepth 1 -maxdepth 1 -type d -name "ch-*" -print0 2>/dev/null)
     done
 
     _restore_whitelist
@@ -1100,20 +1100,20 @@ clean_dev_ai_agents() {
                 continue
             fi
             local target
-            target=$(readlink "$active_symlink" 2> /dev/null || true)
+            target=$(readlink "$active_symlink" 2>/dev/null || true)
             if [[ -n "$target" ]]; then
                 case "$target" in
-                    /*) ;;
-                    *) target="$(cd "$(dirname "$active_symlink")" 2> /dev/null && pwd -P)/$target" ;;
+                /*) ;;
+                *) target="$(cd "$(dirname "$active_symlink")" 2>/dev/null && pwd -P)/$target" ;;
                 esac
                 local entry
                 for entry in "$versions_root"/*; do
                     [[ -e "$entry" ]] || continue
                     case "$target/" in
-                        "$entry"/*)
-                            active_path="$entry"
-                            break
-                            ;;
+                    "$entry"/*)
+                        active_path="$entry"
+                        break
+                        ;;
                     esac
                 done
             fi
@@ -1126,7 +1126,7 @@ clean_dev_ai_agents() {
             [[ "$name" == .* ]] && continue
             [[ ! "$name" =~ ^[0-9] ]] && continue
             entries+=("$entry")
-        done < <(command find "$versions_root" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -print0 2> /dev/null)
+        done < <(command find "$versions_root" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -print0 2>/dev/null)
 
         [[ ${#entries[@]} -le "$keep_previous" ]] && continue
 
@@ -1137,7 +1137,7 @@ clean_dev_ai_agents() {
             local entry
             for entry in "${entries[@]}"; do
                 local mtime
-                mtime=$(stat -f%m "$entry" 2> /dev/null || echo "0")
+                mtime=$(stat -f%m "$entry" 2>/dev/null || echo "0")
                 printf '%s %s\n' "$mtime" "$entry"
             done | sort -rn
         )
@@ -1258,16 +1258,9 @@ clean_dev_misc() {
     [[ -d "$HOME/.local/share/cursor-agent" ]] && safe_find_delete "$HOME/.local/share/cursor-agent" "*.log" "$MOLE_LOG_AGE_DAYS" "f"
     # Playwright cached browser binaries
     safe_clean ~/Library/Caches/ms-playwright/* "Playwright browsers"
-    # Claude Code CLI session/plugin state
-    safe_clean ~/.claude/plugins/cache/* "Claude Code plugin cache"
-    safe_clean ~/.claude/plugins/marketplaces/* "Claude Code marketplaces cache"
-    safe_clean ~/.claude/paste-cache/* "Claude Code paste cache"
-    safe_clean ~/.claude/tmp/* "Claude Code tmp"
-    # Age-gate history dirs so recent sessions remain available for /resume
-    [[ -d "$HOME/.claude/projects" ]] && safe_find_delete "$HOME/.claude/projects" "*" "$MOLE_LOG_AGE_DAYS" "d"
-    [[ -d "$HOME/.claude/file-history" ]] && safe_find_delete "$HOME/.claude/file-history" "*" "$MOLE_LOG_AGE_DAYS" "d"
-    [[ -d "$HOME/.claude/session-env" ]] && safe_find_delete "$HOME/.claude/session-env" "*" "$MOLE_LOG_AGE_DAYS" "f"
-    [[ -d "$HOME/.claude/shell-snapshots" ]] && safe_find_delete "$HOME/.claude/shell-snapshots" "*" "$MOLE_LOG_AGE_DAYS" "f"
+    # Claude Code state under ~/.claude can include persistent memory,
+    # plugin registry data, hooks, and session context. Do not clean it
+    # automatically; users can remove specific paths manually if needed.
     # Wondershare orphan installer payload (bundle ID differs from live app)
     safe_clean ~/Library/Application\ Support/com.wondershare.Installer/* "Wondershare installer payload"
 }
@@ -1317,7 +1310,7 @@ clean_dev_editors() {
     safe_clean ~/Library/Application\ Support/Code/CachedExtensionVSIXs/* "VS Code extension cache"
     safe_clean ~/Library/Application\ Support/Code/WebStorage/* "VS Code WebStorage"
     clean_service_worker_cache "VS Code" "$HOME/Library/Application Support/Code/Service Worker/CacheStorage"
-    if ! pgrep -x "Code" > /dev/null 2>&1; then
+    if ! pgrep -x "Code" >/dev/null 2>&1; then
         safe_clean ~/Library/Application\ Support/Code/Service\ Worker/ScriptCache/* "VS Code Service Worker ScriptCache"
     fi
     safe_clean ~/Library/Caches/Zed/* "Zed cache"
@@ -1332,7 +1325,7 @@ clean_dev_editors() {
         safe_clean ~/Library/Application\ Support/Cursor/DawnGraphiteCache/* "Cursor Dawn cache"
         safe_clean ~/Library/Application\ Support/Cursor/DawnWebGPUCache/* "Cursor WebGPU cache"
         clean_service_worker_cache "Cursor" "$HOME/Library/Application Support/Cursor/Service Worker/CacheStorage"
-        if ! pgrep -x "Cursor" > /dev/null 2>&1; then
+        if ! pgrep -x "Cursor" >/dev/null 2>&1; then
             safe_clean ~/Library/Application\ Support/Cursor/Service\ Worker/ScriptCache/* "Cursor Service Worker ScriptCache"
         fi
     fi
@@ -1386,7 +1379,7 @@ clean_developer_tools() {
         if [[ -d "$lock_dir" && -w "$lock_dir" ]]; then
             safe_clean "$lock_dir"/* "Homebrew lock files"
         elif [[ -d "$lock_dir" ]]; then
-            if find "$lock_dir" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null | grep -q .; then
+            if find "$lock_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .; then
                 debug_log "Skipping read-only Homebrew locks in $lock_dir"
             fi
         fi

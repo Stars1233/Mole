@@ -27,15 +27,15 @@ run_launchctl_unload() {
     fi
 
     if [[ "$need_sudo" == "true" ]]; then
-        sudo launchctl unload "$plist_file" 2> /dev/null || true
+        sudo launchctl unload "$plist_file" 2>/dev/null || true
     else
-        launchctl unload "$plist_file" 2> /dev/null || true
+        launchctl unload "$plist_file" 2>/dev/null || true
     fi
 }
 
 needs_permissions_repair() {
     local owner
-    owner=$(stat -f %Su "$HOME" 2> /dev/null || echo "")
+    owner=$(stat -f %Su "$HOME" 2>/dev/null || echo "")
     if [[ -n "$owner" && "$owner" != "$USER" ]]; then
         return 0
     fi
@@ -57,7 +57,7 @@ needs_permissions_repair() {
 
 has_bluetooth_hid_connected() {
     local bt_report
-    bt_report=$(system_profiler SPBluetoothDataType 2> /dev/null || echo "")
+    bt_report=$(system_profiler SPBluetoothDataType 2>/dev/null || echo "")
     if ! echo "$bt_report" | grep -q "Connected: Yes"; then
         return 1
     fi
@@ -70,16 +70,16 @@ has_bluetooth_hid_connected() {
 }
 
 is_ac_power() {
-    pmset -g batt 2> /dev/null | grep -q "AC Power"
+    pmset -g batt 2>/dev/null | grep -q "AC Power"
 }
 
 is_memory_pressure_high() {
-    if ! command -v memory_pressure > /dev/null 2>&1; then
+    if ! command -v memory_pressure >/dev/null 2>&1; then
         return 1
     fi
 
     local mp_output
-    mp_output=$(memory_pressure -Q 2> /dev/null || echo "")
+    mp_output=$(memory_pressure -Q 2>/dev/null || echo "")
     if echo "$mp_output" | grep -Eiq "warning|critical"; then
         return 0
     fi
@@ -93,7 +93,7 @@ flush_dns_cache() {
         return 0
     fi
 
-    if sudo dscacheutil -flushcache 2> /dev/null && sudo killall -HUP mDNSResponder 2> /dev/null; then
+    if sudo dscacheutil -flushcache 2>/dev/null && sudo killall -HUP mDNSResponder 2>/dev/null; then
         MOLE_DNS_FLUSHED=1
         return 0
     fi
@@ -107,7 +107,7 @@ opt_system_maintenance() {
     fi
 
     local spotlight_status
-    spotlight_status=$(mdutil -s / 2> /dev/null || echo "")
+    spotlight_status=$(mdutil -s / 2>/dev/null || echo "")
     if echo "$spotlight_status" | grep -qi "Indexing disabled"; then
         echo -e "  ${GRAY}${ICON_EMPTY}${NC} Spotlight indexing disabled"
     else
@@ -139,7 +139,7 @@ opt_cache_refresh() {
                     found_files=true
                 fi
                 local size_kb
-                size_kb=$(get_path_size_kb "$target_path" 2> /dev/null || echo "0")
+                size_kb=$(get_path_size_kb "$target_path" 2>/dev/null || echo "0")
                 local size_human="unknown"
                 if [[ "$size_kb" -gt 0 ]]; then
                     size_human=$(bytes_to_human "$((size_kb * 1024))")
@@ -153,19 +153,19 @@ opt_cache_refresh() {
     fi
 
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        qlmanage -r cache > /dev/null 2>&1 || true
-        qlmanage -r > /dev/null 2>&1 || true
+        qlmanage -r cache >/dev/null 2>&1 || true
+        qlmanage -r >/dev/null 2>&1 || true
     fi
 
     for target_path in "${cache_targets[@]}"; do
         if [[ -e "$target_path" ]]; then
             if ! should_protect_path "$target_path"; then
                 local size_kb
-                size_kb=$(get_path_size_kb "$target_path" 2> /dev/null || echo "0")
+                size_kb=$(get_path_size_kb "$target_path" 2>/dev/null || echo "0")
                 if [[ "$size_kb" =~ ^[0-9]+$ ]]; then
                     total_cache_size=$((total_cache_size + size_kb))
                 fi
-                safe_remove "$target_path" true > /dev/null 2>&1 || true
+                safe_remove "$target_path" true >/dev/null 2>&1 || true
             fi
         fi
     done
@@ -196,8 +196,8 @@ opt_saved_state_cleanup() {
             if should_protect_path "$state_path"; then
                 continue
             fi
-            safe_remove "$state_path" true > /dev/null 2>&1 || true
-        done < <(command find "$state_dir" -type d -name "*.savedState" -mtime "+$MOLE_SAVED_STATE_AGE_DAYS" -print0 2> /dev/null)
+            safe_remove "$state_path" true >/dev/null 2>&1 || true
+        done < <(command find "$state_dir" -type d -name "*.savedState" -mtime "+$MOLE_SAVED_STATE_AGE_DAYS" -print0 2>/dev/null)
     fi
 
     opt_msg "App saved states optimized"
@@ -263,7 +263,7 @@ opt_quarantine_cleanup() {
         debug_risk_level "LOW" "Database is automatically recreated by macOS"
     fi
 
-    if ! command -v sqlite3 > /dev/null 2>&1; then
+    if ! command -v sqlite3 >/dev/null 2>&1; then
         echo -e "  ${GRAY}-${NC} Quarantine cleanup skipped, sqlite3 unavailable"
         return 0
     fi
@@ -282,7 +282,7 @@ opt_quarantine_cleanup() {
 
     # Check if database has any entries worth cleaning.
     local row_count
-    row_count=$(run_with_timeout 5 sqlite3 "$quarantine_db" "SELECT COUNT(*) FROM LSQuarantineEvent;" 2> /dev/null || echo "0")
+    row_count=$(run_with_timeout 5 sqlite3 "$quarantine_db" "SELECT COUNT(*) FROM LSQuarantineEvent;" 2>/dev/null || echo "0")
 
     if [[ ! "$row_count" =~ ^[0-9]+$ ]] || [[ "$row_count" -eq 0 ]]; then
         opt_msg "Quarantine database already clean"
@@ -292,7 +292,7 @@ opt_quarantine_cleanup() {
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
         local exit_code=0
         set +e
-        run_with_timeout 10 sqlite3 "$quarantine_db" "DELETE FROM LSQuarantineEvent; VACUUM;" 2> /dev/null
+        run_with_timeout 10 sqlite3 "$quarantine_db" "DELETE FROM LSQuarantineEvent; VACUUM;" 2>/dev/null
         exit_code=$?
         set -e
 
@@ -316,7 +316,7 @@ opt_sqlite_vacuum() {
         debug_risk_level "LOW" "Only optimizes databases, does not delete data"
     fi
 
-    if ! command -v sqlite3 > /dev/null 2>&1; then
+    if ! command -v sqlite3 >/dev/null 2>&1; then
         echo -e "  ${GRAY}-${NC} Database optimization already optimal, sqlite3 unavailable"
         return 0
     fi
@@ -325,7 +325,7 @@ opt_sqlite_vacuum() {
     local -a check_apps=("Mail" "Safari" "Messages")
     local app
     for app in "${check_apps[@]}"; do
-        if pgrep -x "$app" > /dev/null 2>&1; then
+        if pgrep -x "$app" >/dev/null 2>&1; then
             busy_apps+=("$app")
         fi
     done
@@ -360,7 +360,7 @@ opt_sqlite_vacuum() {
 
             should_protect_path "$db_file" && continue
 
-            if ! file "$db_file" 2> /dev/null | grep -q "SQLite"; then
+            if ! file "$db_file" 2>/dev/null | grep -q "SQLite"; then
                 continue
             fi
 
@@ -374,11 +374,11 @@ opt_sqlite_vacuum() {
 
             # Skip if freelist is tiny (already compact).
             local page_info=""
-            page_info=$(run_with_timeout 5 sqlite3 "$db_file" "PRAGMA page_count; PRAGMA freelist_count;" 2> /dev/null || echo "")
+            page_info=$(run_with_timeout 5 sqlite3 "$db_file" "PRAGMA page_count; PRAGMA freelist_count;" 2>/dev/null || echo "")
             local page_count=""
             local freelist_count=""
-            page_count=$(echo "$page_info" | awk 'NR==1 {print $1}' 2> /dev/null || echo "")
-            freelist_count=$(echo "$page_info" | awk 'NR==2 {print $1}' 2> /dev/null || echo "")
+            page_count=$(echo "$page_info" | awk 'NR==1 {print $1}' 2>/dev/null || echo "")
+            freelist_count=$(echo "$page_info" | awk 'NR==2 {print $1}' 2>/dev/null || echo "")
             if [[ "$page_count" =~ ^[0-9]+$ && "$freelist_count" =~ ^[0-9]+$ && "$page_count" -gt 0 ]]; then
                 if ((freelist_count * 100 < page_count * 5)); then
                     skipped=$((skipped + 1))
@@ -390,7 +390,7 @@ opt_sqlite_vacuum() {
             if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
                 local integrity_check=""
                 set +e
-                integrity_check=$(run_with_timeout 10 sqlite3 "$db_file" "PRAGMA integrity_check;" 2> /dev/null)
+                integrity_check=$(run_with_timeout 10 sqlite3 "$db_file" "PRAGMA integrity_check;" 2>/dev/null)
                 local integrity_status=$?
                 set -e
 
@@ -403,7 +403,7 @@ opt_sqlite_vacuum() {
             local exit_code=0
             if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
                 set +e
-                run_with_timeout 20 sqlite3 "$db_file" "VACUUM;" 2> /dev/null
+                run_with_timeout 20 sqlite3 "$db_file" "VACUUM;" 2>/dev/null
                 exit_code=$?
                 set -e
 
@@ -468,11 +468,11 @@ opt_launch_services_rebuild() {
 
         if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
             set +e
-            "$lsregister" -gc > /dev/null 2>&1 || true
-            "$lsregister" -r -f -domain local -domain user -domain system > /dev/null 2>&1
+            "$lsregister" -gc >/dev/null 2>&1 || true
+            "$lsregister" -r -f -domain local -domain user -domain system >/dev/null 2>&1
             success=$?
             if [[ $success -ne 0 ]]; then
-                "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1
+                "$lsregister" -r -f -domain local -domain user >/dev/null 2>&1
                 success=$?
             fi
             set -e
@@ -503,15 +503,15 @@ browser_family_is_running() {
     local browser_name="$1"
 
     case "$browser_name" in
-        "Firefox")
-            pgrep -if "Firefox|org\\.mozilla\\.firefox|firefox .*contentproc|firefox .*plugin-container|firefox .*crashreporter" > /dev/null 2>&1
-            ;;
-        "Zen Browser")
-            pgrep -if "Zen Browser|org\\.mozilla\\.zen|Zen Browser Helper|zen .*contentproc" > /dev/null 2>&1
-            ;;
-        *)
-            pgrep -ix "$browser_name" > /dev/null 2>&1
-            ;;
+    "Firefox")
+        pgrep -if "Firefox|org\\.mozilla\\.firefox|firefox .*contentproc|firefox .*plugin-container|firefox .*crashreporter" >/dev/null 2>&1
+        ;;
+    "Zen Browser")
+        pgrep -if "Zen Browser|org\\.mozilla\\.zen|Zen Browser Helper|zen .*contentproc" >/dev/null 2>&1
+        ;;
+    *)
+        pgrep -ix "$browser_name" >/dev/null 2>&1
+        ;;
     esac
 }
 
@@ -559,7 +559,7 @@ opt_font_cache_rebuild() {
             return 0
         fi
 
-        if sudo atsutil databases -remove > /dev/null 2>&1; then
+        if sudo atsutil databases -remove >/dev/null 2>&1; then
             success=true
         fi
     else
@@ -595,7 +595,7 @@ opt_memory_pressure_relief() {
             return 0
         fi
 
-        if sudo purge > /dev/null 2>&1; then
+        if sudo purge >/dev/null 2>&1; then
             opt_msg "Inactive memory released"
             opt_msg "System responsiveness improved"
         else
@@ -616,10 +616,10 @@ opt_network_stack_optimize() {
         local route_ok=true
         local dns_ok=true
 
-        if ! route -n get default > /dev/null 2>&1; then
+        if ! route -n get default >/dev/null 2>&1; then
             route_ok=false
         fi
-        if ! dscacheutil -q host -a name "example.com" > /dev/null 2>&1; then
+        if ! dscacheutil -q host -a name "example.com" >/dev/null 2>&1; then
             dns_ok=false
         fi
 
@@ -628,11 +628,11 @@ opt_network_stack_optimize() {
             return 0
         fi
 
-        if sudo route -n flush > /dev/null 2>&1; then
+        if sudo route -n flush >/dev/null 2>&1; then
             route_flushed="true"
         fi
 
-        if sudo arp -a -d > /dev/null 2>&1; then
+        if sudo arp -a -d >/dev/null 2>&1; then
             arp_flushed="true"
         fi
     else
@@ -677,7 +677,7 @@ opt_disk_permissions_repair() {
         fi
 
         local success=false
-        if sudo diskutil resetUserPermissions / "$user_id" > /dev/null 2>&1; then
+        if sudo diskutil resetUserPermissions / "$user_id" >/dev/null 2>&1; then
             success=true
         fi
 
@@ -726,20 +726,20 @@ opt_bluetooth_reset() {
         local bt_audio_active=false
 
         local audio_info
-        audio_info=$(system_profiler SPAudioDataType 2> /dev/null || echo "")
+        audio_info=$(system_profiler SPAudioDataType 2>/dev/null || echo "")
 
         local default_output
-        default_output=$(echo "$audio_info" | awk '/Default Output Device: Yes/,/^$/' 2> /dev/null || echo "")
+        default_output=$(echo "$audio_info" | awk '/Default Output Device: Yes/,/^$/' 2>/dev/null || echo "")
 
         if echo "$default_output" | grep -qi "Transport:.*Bluetooth"; then
             bt_audio_active=true
         fi
 
         if [[ "$bt_audio_active" == "false" ]]; then
-            if system_profiler SPBluetoothDataType 2> /dev/null | grep -q "Connected: Yes"; then
+            if system_profiler SPBluetoothDataType 2>/dev/null | grep -q "Connected: Yes"; then
                 local -a media_apps=("Music" "Spotify" "VLC" "QuickTime Player" "TV" "Podcasts" "Safari" "Google Chrome" "Chrome" "Firefox" "Arc" "IINA" "mpv")
                 for app in "${media_apps[@]}"; do
-                    if pgrep -x "$app" > /dev/null 2>&1; then
+                    if pgrep -x "$app" >/dev/null 2>&1; then
                         bt_audio_active=true
                         break
                     fi
@@ -755,14 +755,14 @@ opt_bluetooth_reset() {
             return 0
         fi
 
-        if sudo pkill -TERM bluetoothd > /dev/null 2>&1; then
+        if sudo pkill -TERM bluetoothd >/dev/null 2>&1; then
             if [[ "$spinner_started" == "true" ]]; then
                 stop_inline_spinner
             fi
             echo -e "  ${GRAY}${ICON_WARNING}${NC} ${GRAY}${disconnect_notice}${NC}"
             sleep 1
-            if pgrep -x bluetoothd > /dev/null 2>&1; then
-                sudo pkill -KILL bluetoothd > /dev/null 2>&1 || true
+            if pgrep -x bluetoothd >/dev/null 2>&1; then
+                sudo pkill -KILL bluetoothd >/dev/null 2>&1 || true
             fi
             opt_msg "Bluetooth module restarted"
             opt_msg "Connectivity issues resolved"
@@ -785,7 +785,7 @@ opt_bluetooth_reset() {
 # Spotlight index check/rebuild (only if slow).
 opt_spotlight_index_optimize() {
     local spotlight_status
-    spotlight_status=$(mdutil -s / 2> /dev/null || echo "")
+    spotlight_status=$(mdutil -s / 2>/dev/null || echo "")
 
     if echo "$spotlight_status" | grep -qi "Indexing disabled"; then
         echo -e "  ${GRAY}${ICON_EMPTY}${NC} Spotlight indexing is disabled"
@@ -797,7 +797,7 @@ opt_spotlight_index_optimize() {
         local test_start test_end test_duration
         for _ in 1 2; do
             test_start=$(get_epoch_seconds)
-            mdfind "kMDItemFSName == 'Applications'" > /dev/null 2>&1 || true
+            mdfind "kMDItemFSName == 'Applications'" >/dev/null 2>&1 || true
             test_end=$(get_epoch_seconds)
             test_duration=$((test_end - test_start))
             if [[ $test_duration -gt 3 ]]; then
@@ -814,7 +814,7 @@ opt_spotlight_index_optimize() {
 
             if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
                 echo -e "  ${BLUE}${ICON_INFO}${NC} Spotlight search is slow, rebuilding index, may take 1-2 hours"
-                if sudo mdutil -E / > /dev/null 2>&1; then
+                if sudo mdutil -E / >/dev/null 2>&1; then
                     opt_msg "Spotlight index rebuild started"
                     echo -e "  ${GRAY}Indexing will continue in background${NC}"
                 else
@@ -839,18 +839,18 @@ opt_dock_refresh() {
     if [[ -d "$dock_support" ]]; then
         while IFS= read -r db_file; do
             if [[ -f "$db_file" ]]; then
-                safe_remove "$db_file" true > /dev/null 2>&1 && refreshed=true
+                safe_remove "$db_file" true >/dev/null 2>&1 && refreshed=true
             fi
-        done < <(command find "$dock_support" -name "*.db" -type f 2> /dev/null || true)
+        done < <(command find "$dock_support" -name "*.db" -type f 2>/dev/null || true)
     fi
 
     local dock_plist="$HOME/Library/Preferences/com.apple.dock.plist"
     if [[ -f "$dock_plist" ]]; then
-        touch "$dock_plist" 2> /dev/null || true
+        touch "$dock_plist" 2>/dev/null || true
     fi
 
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        killall Dock 2> /dev/null || true
+        killall Dock 2>/dev/null || true
     fi
 
     if [[ "$refreshed" == "true" ]]; then
@@ -871,7 +871,7 @@ opt_prevent_network_dsstore() {
 
     for key in "${keys[@]}"; do
         local current
-        current=$(defaults read "$domain" "$key" 2> /dev/null || echo "")
+        current=$(defaults read "$domain" "$key" 2>/dev/null || echo "")
         if [[ "$current" == "1" ]]; then
             already=$((already + 1))
             continue
@@ -882,7 +882,7 @@ opt_prevent_network_dsstore() {
             continue
         fi
 
-        if defaults write "$domain" "$key" -bool true 2> /dev/null; then
+        if defaults write "$domain" "$key" -bool true 2>/dev/null; then
             changed=$((changed + 1))
         fi
     done
@@ -913,9 +913,9 @@ opt_launch_agents_cleanup() {
         [[ -f "$plist" ]] || continue
 
         local binary=""
-        binary=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:0" "$plist" 2> /dev/null || true)
+        binary=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:0" "$plist" 2>/dev/null || true)
         if [[ -z "$binary" ]]; then
-            binary=$(/usr/libexec/PlistBuddy -c "Print :Program" "$plist" 2> /dev/null || true)
+            binary=$(/usr/libexec/PlistBuddy -c "Print :Program" "$plist" 2>/dev/null || true)
         fi
 
         if [[ -n "$binary" && ! -e "$binary" ]]; then
@@ -931,7 +931,7 @@ opt_launch_agents_cleanup() {
 
     for plist in "${broken_plists[@]}"; do
         run_launchctl_unload "$plist"
-        safe_remove "$plist" true > /dev/null 2>&1 || true
+        safe_remove "$plist" true >/dev/null 2>&1 || true
     done
 
     opt_msg "Cleaned $broken_count broken Launch Agent(s)"
@@ -942,7 +942,7 @@ opt_launch_agents_cleanup() {
 # A missing log file is treated as stale and triggers maintenance.
 opt_periodic_maintenance() {
     # Check if periodic command exists (removed in macOS 26+)
-    if ! command -v periodic > /dev/null 2>&1; then
+    if ! command -v periodic >/dev/null 2>&1; then
         opt_msg "Periodic maintenance skipped (not available on this macOS version)"
         return 0
     fi
@@ -952,7 +952,7 @@ opt_periodic_maintenance() {
 
     if [[ -f "$daily_log" ]]; then
         local last_mod now age_days
-        last_mod=$(stat -f %m "$daily_log" 2> /dev/null || echo "0")
+        last_mod=$(stat -f %m "$daily_log" 2>/dev/null || echo "0")
         now=$(get_epoch_seconds)
         age_days=$(((now - last_mod) / 86400))
 
@@ -963,7 +963,7 @@ opt_periodic_maintenance() {
     fi
 
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        if ! sudo -n true 2> /dev/null; then
+        if ! sudo -n true 2>/dev/null; then
             opt_msg "Periodic maintenance skipped (requires sudo)"
             return 0
         fi
@@ -997,13 +997,13 @@ opt_shared_file_list_repair() {
         [[ -f "$sfl_file" ]] || continue
         # Skip recent-documents list (user data, not a cache)
         [[ "$sfl_file" == *"ApplicationRecentDocuments"* ]] && continue
-        if ! plutil -lint "$sfl_file" > /dev/null 2>&1; then
+        if ! plutil -lint "$sfl_file" >/dev/null 2>&1; then
             if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-                safe_remove "$sfl_file" true > /dev/null 2>&1 || true
+                safe_remove "$sfl_file" true >/dev/null 2>&1 || true
             fi
             repaired=$((repaired + 1))
         fi
-    done < <(command find "$sfl_dir" \( -name "*.sfl2" -o -name "*.sfl3" \) -type f 2> /dev/null || true)
+    done < <(command find "$sfl_dir" \( -name "*.sfl2" -o -name "*.sfl3" \) -type f 2>/dev/null || true)
 
     if [[ $repaired -gt 0 ]]; then
         opt_msg "Repaired $repaired corrupted shared file list(s)"
@@ -1015,7 +1015,7 @@ opt_shared_file_list_repair() {
 # Clean old delivered notifications from NotificationCenter database.
 opt_notification_cleanup() {
     local nc_db_dir
-    nc_db_dir="$(getconf DARWIN_USER_DIR 2> /dev/null || true)/com.apple.notificationcenter/db2"
+    nc_db_dir="$(getconf DARWIN_USER_DIR 2>/dev/null || true)/com.apple.notificationcenter/db2"
     local nc_db="$nc_db_dir/db"
 
     if [[ ! -f "$nc_db" ]]; then
@@ -1024,7 +1024,7 @@ opt_notification_cleanup() {
     fi
 
     local db_size
-    db_size=$(command du -sk "$nc_db" 2> /dev/null | awk '{print $1}')
+    db_size=$(command du -sk "$nc_db" 2>/dev/null | awk '{print $1}')
     db_size=${db_size:-0}
 
     # Only clean if database exceeds 50MB (51200 KB)
@@ -1034,13 +1034,13 @@ opt_notification_cleanup() {
     fi
 
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        if command -v sqlite3 > /dev/null 2>&1; then
+        if command -v sqlite3 >/dev/null 2>&1; then
             local sql_ok=0
             sqlite3 "$nc_db" \
                 "DELETE FROM record WHERE delivered_date < strftime('%s','now','-30 days'); VACUUM;" \
-                2> /dev/null || sql_ok=$?
+                2>/dev/null || sql_ok=$?
             if [[ $sql_ok -eq 0 ]]; then
-                killall NotificationCenter 2> /dev/null || true
+                killall NotificationCenter 2>/dev/null || true
                 opt_msg "Notification Center database cleaned (was $(bytes_to_human $((db_size * 1024))))"
             else
                 echo -e "  ${YELLOW}${ICON_WARNING}${NC} Notification Center cleanup skipped (database busy or locked)"
@@ -1104,7 +1104,7 @@ opt_coreduet_cleanup() {
     for f in "$knowledge_db" "$wal_file" "$shm_file"; do
         if [[ -f "$f" ]]; then
             local fsize
-            fsize=$(command du -sk "$f" 2> /dev/null | awk '{print $1}')
+            fsize=$(command du -sk "$f" 2>/dev/null | awk '{print $1}')
             total_size=$((total_size + ${fsize:-0}))
         fi
     done
@@ -1118,14 +1118,14 @@ opt_coreduet_cleanup() {
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
         # Remove WAL and SHM files safely (auto-regenerated by SQLite)
         for f in "$wal_file" "$shm_file"; do
-            [[ -f "$f" ]] && safe_remove "$f" true > /dev/null 2>&1 || true
+            [[ -f "$f" ]] && safe_remove "$f" true >/dev/null 2>&1 || true
         done
         # Remove ZOBJECT entries older than 90 days (CoreTime is Mac epoch: seconds since 2001-01-01)
-        if command -v sqlite3 > /dev/null 2>&1; then
+        if command -v sqlite3 >/dev/null 2>&1; then
             local sql_ok=0
             sqlite3 "$knowledge_db" \
                 "DELETE FROM ZOBJECT WHERE ZCREATIONDATE < (strftime('%s','now','-90 days') - strftime('%s','2001-01-01')); VACUUM;" \
-                2> /dev/null || sql_ok=$?
+                2>/dev/null || sql_ok=$?
             if [[ $sql_ok -eq 0 ]]; then
                 opt_msg "Knowledge database cleaned (was $(bytes_to_human $((total_size * 1024))))"
             else
@@ -1146,25 +1146,48 @@ opt_coreduet_cleanup() {
 _login_item_app_exists() {
     local name="$1"
     # 1. Exact match
-    if mdfind "kMDItemFSName == '${name}.app'" 2> /dev/null | grep -q .; then
+    if mdfind "kMDItemFSName == '${name}.app'" 2>/dev/null | grep -q .; then
         return 0
     fi
     # 2. Try without spaces (e.g. "Top Calendar" -> "TopCalendar")
     local nospace="${name// /}"
-    if [[ "$nospace" != "$name" ]] && mdfind "kMDItemFSName == '${nospace}.app'" 2> /dev/null | grep -q .; then
+    if [[ "$nospace" != "$name" ]] && mdfind "kMDItemFSName == '${nospace}.app'" 2>/dev/null | grep -q .; then
         return 0
     fi
     # 3. Strip common helper suffixes (e.g. "AliLangClient" -> "AliLang")
     local stripped
     stripped=$(echo "$nospace" | sed -E 's/(Client|Helper|Agent|Launcher|Service)$//')
-    if [[ "$stripped" != "$nospace" ]] && mdfind "kMDItemFSName == '${stripped}.app'" 2> /dev/null | grep -q .; then
+    if [[ "$stripped" != "$nospace" ]] && mdfind "kMDItemFSName == '${stripped}.app'" 2>/dev/null | grep -q .; then
         return 0
     fi
-    # 4. Fallback: check sfltool dumpbtm for the actual on-disk path.
+    # 4. Recursive filesystem fallback for nested helper apps inside parent
+    #    bundles. Spotlight often misses helpers under Contents/.
+    local candidate roots app_name
+    local -a app_names=("${name}.app")
+    [[ "$nospace" != "$name" ]] && app_names+=("${nospace}.app")
+    [[ "$stripped" != "$nospace" ]] && app_names+=("${stripped}.app")
+    for roots in "/Applications" "$HOME/Applications"; do
+        [[ -d "$roots" ]] || continue
+        for app_name in "${app_names[@]}"; do
+            candidate=$(command find "$roots" -maxdepth 6 -type d -name "$app_name" -print -quit 2>/dev/null || true)
+            if [[ -n "$candidate" && -d "$candidate" ]]; then
+                return 0
+            fi
+        done
+    done
+    # 5. Fallback: check sfltool dumpbtm for the actual on-disk path.
     #    Nested helper apps (e.g. DBnginMenuHelper.app inside DBngin.app) are
     #    invisible to mdfind but still have a valid URL in the BTM database.
     local btm_path
-    btm_path=$(sfltool dumpbtm 2> /dev/null | grep -i "${name}" | grep -oE '/[^ ]+\.app' | head -1)
+    btm_path=$(sfltool dumpbtm 2>/dev/null | awk -v item="$name" '
+        BEGIN { IGNORECASE = 1 }
+        index($0, item) {
+            if (match($0, "/.*\\.app")) {
+                print substr($0, RSTART, RLENGTH)
+                exit
+            }
+        }
+    ')
     if [[ -n "$btm_path" ]] && [[ -e "$btm_path" ]]; then
         return 0
     fi
@@ -1178,7 +1201,7 @@ opt_login_items_audit() {
     fi
 
     local items_output
-    items_output=$(osascript -e 'tell application "System Events" to get the name of every login item' 2> /dev/null || true)
+    items_output=$(osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null || true)
 
     if [[ -z "$items_output" ]]; then
         opt_msg "No login items found"
@@ -1189,7 +1212,7 @@ opt_login_items_audit() {
     local checked=0
     # Split on ", " (comma-space) to preserve multi-word names like "Top Calendar" and "mihomo-party"
     local old_ifs="$IFS"
-    IFS=',' read -ra items_list <<< "$items_output"
+    IFS=',' read -ra items_list <<<"$items_output"
     IFS="$old_ifs"
     for item in "${items_list[@]}"; do
         # Strip leading/trailing spaces from each token
@@ -1218,33 +1241,38 @@ execute_optimization() {
     local action="$1"
     local path="${2:-}"
 
+    if command -v is_whitelisted >/dev/null && is_whitelisted "$action"; then
+        opt_msg "Skipped (whitelisted): $action"
+        return 0
+    fi
+
     case "$action" in
-        system_maintenance) opt_system_maintenance ;;
-        cache_refresh) opt_cache_refresh ;;
-        saved_state_cleanup) opt_saved_state_cleanup ;;
-        fix_broken_configs) opt_fix_broken_configs ;;
-        network_optimization) opt_network_optimization ;;
-        quarantine_cleanup) opt_quarantine_cleanup ;;
-        sqlite_vacuum) opt_sqlite_vacuum ;;
-        launch_services_rebuild) opt_launch_services_rebuild ;;
-        font_cache_rebuild) opt_font_cache_rebuild ;;
-        dock_refresh) opt_dock_refresh ;;
-        prevent_network_dsstore) opt_prevent_network_dsstore ;;
-        memory_pressure_relief) opt_memory_pressure_relief ;;
-        network_stack_optimize) opt_network_stack_optimize ;;
-        disk_permissions_repair) opt_disk_permissions_repair ;;
-        bluetooth_reset) opt_bluetooth_reset ;;
-        spotlight_index_optimize) opt_spotlight_index_optimize ;;
-        launch_agents_cleanup) opt_launch_agents_cleanup ;;
-        periodic_maintenance) opt_periodic_maintenance ;;
-        shared_file_list_repair) opt_shared_file_list_repair ;;
-        notification_cleanup) opt_notification_cleanup ;;
-        disk_verify) opt_disk_verify ;;
-        coreduet_cleanup) opt_coreduet_cleanup ;;
-        login_items_audit) opt_login_items_audit ;;
-        *)
-            echo -e "${YELLOW}${ICON_ERROR}${NC} Unknown action: $action"
-            return 1
-            ;;
+    system_maintenance) opt_system_maintenance ;;
+    cache_refresh) opt_cache_refresh ;;
+    saved_state_cleanup) opt_saved_state_cleanup ;;
+    fix_broken_configs) opt_fix_broken_configs ;;
+    network_optimization) opt_network_optimization ;;
+    quarantine_cleanup) opt_quarantine_cleanup ;;
+    sqlite_vacuum) opt_sqlite_vacuum ;;
+    launch_services_rebuild) opt_launch_services_rebuild ;;
+    font_cache_rebuild) opt_font_cache_rebuild ;;
+    dock_refresh) opt_dock_refresh ;;
+    prevent_network_dsstore) opt_prevent_network_dsstore ;;
+    memory_pressure_relief) opt_memory_pressure_relief ;;
+    network_stack_optimize) opt_network_stack_optimize ;;
+    disk_permissions_repair) opt_disk_permissions_repair ;;
+    bluetooth_reset) opt_bluetooth_reset ;;
+    spotlight_index_optimize) opt_spotlight_index_optimize ;;
+    launch_agents_cleanup) opt_launch_agents_cleanup ;;
+    periodic_maintenance) opt_periodic_maintenance ;;
+    shared_file_list_repair) opt_shared_file_list_repair ;;
+    notification_cleanup) opt_notification_cleanup ;;
+    disk_verify) opt_disk_verify ;;
+    coreduet_cleanup) opt_coreduet_cleanup ;;
+    login_items_audit) opt_login_items_audit ;;
+    *)
+        echo -e "${YELLOW}${ICON_ERROR}${NC} Unknown action: $action"
+        return 1
+        ;;
     esac
 }

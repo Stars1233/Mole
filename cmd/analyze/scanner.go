@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -374,13 +375,13 @@ func scanPathConcurrentWithLimiter(root string, filesScanned, dirsScanned, bytes
 		})
 	} else {
 		entries = make([]dirEntry, entriesHeap.Len())
-		for i := len(entries) - 1; i >= 0; i-- {
+		for i := range slices.Backward(entries) {
 			entries[i] = heap.Pop(entriesHeap).(dirEntry)
 		}
 	}
 
 	largeFiles := make([]fileEntry, largeFilesHeap.Len())
-	for i := len(largeFiles) - 1; i >= 0; i-- {
+	for i := range slices.Backward(largeFiles) {
 		largeFiles[i] = heap.Pop(largeFilesHeap).(fileEntry)
 	}
 
@@ -612,7 +613,7 @@ func findLargeFilesWithSpotlight(root string, minSize int64) []fileEntry {
 	}
 
 	files := make([]fileEntry, h.Len())
-	for i := len(files) - 1; i >= 0; i-- {
+	for i := range slices.Backward(files) {
 		files[i] = heap.Pop(h).(fileEntry)
 	}
 
