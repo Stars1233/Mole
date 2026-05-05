@@ -502,6 +502,7 @@ paginated_multi_select() {
 
         # Common menu items
         local nav="${GRAY}${ICON_NAV_UP}${ICON_NAV_DOWN}${NC}"
+        local page_ctrl="${GRAY}h/l Page${NC}"
         local space_select="${GRAY}Space Select${NC}"
         local enter="${GRAY}Enter Save${NC}"
         local cancel_label="${GRAY}Q Cancel${NC}"
@@ -523,7 +524,7 @@ paginated_multi_select() {
             [[ "$term_width" =~ ^[0-9]+$ ]] || term_width=80
 
             # Full controls
-            local -a _segs=("$nav" "$space_select" "$enter" "$sort_ctrl" "$order_ctrl" "$filter_ctrl" "$cancel_label")
+            local -a _segs=("$nav" "$page_ctrl" "$space_select" "$enter" "$sort_ctrl" "$order_ctrl" "$filter_ctrl" "$cancel_label")
 
             # Calculate width
             local total_len=0 seg_count=${#_segs[@]}
@@ -534,7 +535,7 @@ paginated_multi_select() {
 
             # Level 1: Remove "Space Select" if too wide
             if [[ $total_len -gt $term_width ]]; then
-                _segs=("$nav" "$enter" "$sort_ctrl" "$order_ctrl" "$filter_ctrl" "$cancel_label")
+                _segs=("$nav" "$page_ctrl" "$enter" "$sort_ctrl" "$order_ctrl" "$filter_ctrl" "$cancel_label")
 
                 total_len=0
                 seg_count=${#_segs[@]}
@@ -543,7 +544,7 @@ paginated_multi_select() {
                     [[ $i -lt $((seg_count - 1)) ]] && total_len=$((total_len + 3))
                 done
 
-                # Level 2: Remove sort label if still too wide
+                # Level 2: Remove sort label and page hint if still too wide
                 if [[ $total_len -gt $term_width ]]; then
                     _segs=("$nav" "$enter" "$order_ctrl" "$filter_ctrl" "$cancel_label")
                 fi
@@ -552,7 +553,7 @@ paginated_multi_select() {
             _print_wrapped_controls "$sep" "${_segs[@]}"
         else
             # Without metadata: basic controls
-            local -a _segs_simple=("$nav" "$space_select" "$enter" "$filter_ctrl" "$cancel_label")
+            local -a _segs_simple=("$nav" "$page_ctrl" "$space_select" "$enter" "$filter_ctrl" "$cancel_label")
             _print_wrapped_controls "$sep" "${_segs_simple[@]}"
         fi
         printf "${clear_line}" >&2
@@ -724,6 +725,31 @@ paginated_multi_select() {
                         top_index=0
                         cursor_pos=$((visible_total - 1))
                     fi
+                    need_full_redraw=true
+                fi
+                ;;
+            "LEFT")
+                if [[ ${#view_indices[@]} -gt 0 ]]; then
+                    if [[ $top_index -gt 0 ]]; then
+                        top_index=$((top_index - items_per_page))
+                        [[ $top_index -lt 0 ]] && top_index=0
+                    fi
+                    cursor_pos=0
+                    need_full_redraw=true
+                fi
+                ;;
+            "RIGHT")
+                if [[ ${#view_indices[@]} -gt 0 ]]; then
+                    local visible_total=${#view_indices[@]}
+                    if [[ $((top_index + items_per_page)) -lt $visible_total ]]; then
+                        top_index=$((top_index + items_per_page))
+                        local _remaining=$((visible_total - top_index))
+                        if [[ $_remaining -lt $items_per_page ]]; then
+                            top_index=$((visible_total - items_per_page))
+                            [[ $top_index -lt 0 ]] && top_index=0
+                        fi
+                    fi
+                    cursor_pos=0
                     need_full_redraw=true
                 fi
                 ;;
