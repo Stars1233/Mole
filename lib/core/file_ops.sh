@@ -746,6 +746,16 @@ safe_sudo_find_delete() {
 # ============================================================================
 
 # Get path size in KB (returns 0 if not found)
+#
+# For regular files and symlinks, prefer 'stat' over 'du': it avoids the
+# fork+pipe cost of 'du | awk' on every call, which adds up in tight loops
+# (e.g. external-volume ._* sweeps, Application Support log scans). 'du -skP'
+# and 'stat -f%z' both report logical size without following symlinks on
+# macOS, and the 1KB-rounded outputs match for the file types we encounter
+# (logs, caches, leftovers). Directories still go through 'du' because 'stat'
+# only reports a single directory entry, not recursive content size. .app
+# bundles continue to go through mdls because APFS clones make 'du'
+# under-report large bundles like Xcode.
 get_path_size_kb() {
     local path="$1"
     [[ -z "$path" || ! -e "$path" ]] && {
@@ -761,6 +771,17 @@ get_path_size_kb() {
         if [[ "$mdls_size" =~ ^[0-9]+$ && "$mdls_size" -gt 0 ]]; then
             # Return in KB
             echo "$((mdls_size / 1024))"
+            return
+        fi
+    fi
+
+    # Fast path for regular files and symlinks: avoid forking 'du'.
+    if [[ -f "$path" || -L "$path" ]]; then
+        local bytes
+        bytes=$(stat -f%z "$path" 2> /dev/null || echo "")
+        if [[ "$bytes" =~ ^[0-9]+$ ]]; then
+            # Round up to whole KB to match 'du -skP' semantics.
+            echo $(((bytes + 1023) / 1024))
             return
         fi
     fi
