@@ -66,6 +66,7 @@ Public docs and examples should prefer the installed `mo` command. Use `./mole` 
 - `mo optimize` - maintenance and diagnostics, with `--whitelist` support.
 - `mo analyze` / `mo analyse` - Go disk explorer; safer for ad hoc cleanup because it uses Trash routing.
 - `mo status` - live health dashboard and JSON output for automation.
+- `mo check` / `mo doctor` - run system diagnostics (updates, health, security, config, dev environment) with optional auto-fix prompts.
 - `mo purge` - project build artifact cleanup, with configurable scan paths through `mo purge --paths`.
 - `mo installer` - installer-file discovery and cleanup.
 - `mo completion`, `mo touchid`, `mo update`, and `mo remove` manage shell integration, sudo auth convenience, updates, and uninstalling Mole itself.

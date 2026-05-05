@@ -993,6 +993,9 @@ main() {
         "completion")
             exec "$SCRIPT_DIR/bin/completion.sh" "${args[@]:1}"
             ;;
+        "check" | "doctor")
+            exec "$SCRIPT_DIR/bin/check.sh" "${args[@]:1}"
+            ;;
         "update")
             local force_update=false
             local nightly_update=false

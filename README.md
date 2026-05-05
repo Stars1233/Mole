@@ -50,6 +50,7 @@ mo uninstall                 # Remove installed apps + their leftovers
 mo optimize                  # Refresh caches & services
 mo analyze                   # Visual disk explorer (or 'mo analyse')
 mo status                    # Live system health dashboard
+mo check                     # Run system diagnostics (alias: mo doctor)
 mo purge                     # Clean project build artifacts
 mo installer                 # Find and remove installer files
 

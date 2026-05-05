@@ -123,6 +123,31 @@ EOF
 	[[ "$output" == *"Unknown command: unknown-command"* ]]
 }
 
+@test "mole --help lists check command" {
+	run env HOME="$HOME" "$PROJECT_ROOT/mole" --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"mo check"* ]]
+}
+
+@test "mole check --help shows diagnostics description" {
+	run env HOME="$HOME" "$PROJECT_ROOT/mole" check --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Run system diagnostics"* ]]
+	[[ "$output" == *"mo doctor"* ]]
+}
+
+@test "mole doctor --help is an alias for mo check --help" {
+	run env HOME="$HOME" "$PROJECT_ROOT/mole" doctor --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Run system diagnostics"* ]]
+}
+
+@test "mole check rejects unknown options" {
+	run env HOME="$HOME" "$PROJECT_ROOT/mole" check --bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"Unknown check option: --bogus"* ]]
+}
+
 @test "mole uninstall --whitelist returns unsupported option error" {
 	run env HOME="$HOME" "$PROJECT_ROOT/mole" uninstall --whitelist
 	[ "$status" -ne 0 ]
