@@ -42,12 +42,33 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
 
-      - name: Test on ${{ matrix.os }}
+      - name: Install bats
+        run: brew install bats-core coreutils
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v5
+        with:
+          go-version-file: go.mod
+
+      - name: Smoke load on ${{ matrix.os }}
         run: |
           echo "Testing on ${{ matrix.os }}..."
           bash -n mole
           source lib/core/common.sh
           echo "✓ Successfully loaded on ${{ matrix.os }}"
+
+      - name: Run core bats subset
+        env:
+          MOLE_TEST_NO_AUTH: "1"
+          BATS_FORMATTER: tap
+          LANG: en_US.UTF-8
+          LC_ALL: en_US.UTF-8
+        run: |
+          bats tests/core_safe_functions.bats \
+               tests/core_common.bats \
+               tests/core_timeout.bats \
+               tests/regression.bats \
+               tests/cli.bats
 
   security:
     name: Security Checks
