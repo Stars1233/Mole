@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/tw93/mole/internal/units"
 )
 
 func displayPath(path string) string {
@@ -80,20 +82,7 @@ func formatNumber(n int64) string {
 }
 
 func humanizeBytes(size int64) string {
-	if size < 0 {
-		return "0 B"
-	}
-	const unit = 1000
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	value := float64(size) / float64(div)
-	return fmt.Sprintf("%.1f %cB", value, "kMGTPE"[exp])
+	return units.BytesSI(size)
 }
 
 func coloredProgressBar(value, maxValue int64, percent float64) string {

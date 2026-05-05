@@ -164,126 +164,23 @@ func TestShorten(t *testing.T) {
 	}
 }
 
+// Core byte-format coverage lives in internal/units; these are wiring sanity
+// checks to ensure the cmd/status helpers still delegate to that package.
 func TestHumanBytesShort(t *testing.T) {
-	tests := []struct {
-		name  string
-		input uint64
-		want  string
-	}{
-		// Zero and small values.
-		{"zero", 0, "0"},
-		{"one byte", 1, "1"},
-		{"999 bytes", 999, "999"},
-
-		// Kilobyte boundaries.
-		{"exactly 1KB", 1 << 10, "1K"},
-		{"just under 1KB", (1 << 10) - 1, "1023"},
-		{"1.5KB rounds to 2K", 1536, "2K"},
-		{"999KB", 999 << 10, "999K"},
-
-		// Megabyte boundaries.
-		{"exactly 1MB", 1 << 20, "1M"},
-		{"just under 1MB", (1 << 20) - 1, "1024K"},
-		{"500MB", 500 << 20, "500M"},
-
-		// Gigabyte boundaries.
-		{"exactly 1GB", 1 << 30, "1G"},
-		{"just under 1GB", (1 << 30) - 1, "1024M"},
-		{"100GB", 100 << 30, "100G"},
-
-		// Terabyte boundaries.
-		{"exactly 1TB", 1 << 40, "1T"},
-		{"just under 1TB", (1 << 40) - 1, "1024G"},
-		{"2TB", 2 << 40, "2T"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := humanBytesShort(tt.input)
-			if got != tt.want {
-				t.Errorf("humanBytesShort(%d) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if got := humanBytesShort(100 << 30); got != "100G" {
+		t.Errorf("humanBytesShort(100<<30) = %q, want %q", got, "100G")
 	}
 }
 
 func TestHumanBytes(t *testing.T) {
-	tests := []struct {
-		name  string
-		input uint64
-		want  string
-	}{
-		// Zero and small values.
-		{"zero", 0, "0 B"},
-		{"one byte", 1, "1 B"},
-		{"1023 bytes", 1023, "1023 B"},
-
-		// Kilobyte boundaries (uses > not >=).
-		{"exactly 1KB", 1 << 10, "1024 B"},
-		{"just over 1KB", (1 << 10) + 1, "1.0 KB"},
-		{"1.5KB", 1536, "1.5 KB"},
-
-		// Megabyte boundaries (uses > not >=).
-		{"exactly 1MB", 1 << 20, "1024.0 KB"},
-		{"just over 1MB", (1 << 20) + 1, "1.0 MB"},
-		{"500MB", 500 << 20, "500.0 MB"},
-
-		// Gigabyte boundaries (uses > not >=).
-		{"exactly 1GB", 1 << 30, "1024.0 MB"},
-		{"just over 1GB", (1 << 30) + 1, "1.0 GB"},
-		{"100GB", 100 << 30, "100.0 GB"},
-
-		// Terabyte boundaries (uses > not >=).
-		{"exactly 1TB", 1 << 40, "1024.0 GB"},
-		{"just over 1TB", (1 << 40) + 1, "1.0 TB"},
-		{"2TB", 2 << 40, "2.0 TB"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := humanBytes(tt.input)
-			if got != tt.want {
-				t.Errorf("humanBytes(%d) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if got := humanBytes((1 << 20) + 1); got != "1.0 MB" {
+		t.Errorf("humanBytes(1MB+1) = %q, want %q", got, "1.0 MB")
 	}
 }
 
 func TestHumanBytesCompact(t *testing.T) {
-	tests := []struct {
-		name  string
-		input uint64
-		want  string
-	}{
-		// Zero and small values.
-		{"zero", 0, "0"},
-		{"one byte", 1, "1"},
-		{"1023 bytes", 1023, "1023"},
-
-		// Kilobyte boundaries (uses >= not >).
-		{"exactly 1KB", 1 << 10, "1.0K"},
-		{"1.5KB", 1536, "1.5K"},
-
-		// Megabyte boundaries.
-		{"exactly 1MB", 1 << 20, "1.0M"},
-		{"500MB", 500 << 20, "500.0M"},
-
-		// Gigabyte boundaries.
-		{"exactly 1GB", 1 << 30, "1.0G"},
-		{"100GB", 100 << 30, "100.0G"},
-
-		// Terabyte boundaries.
-		{"exactly 1TB", 1 << 40, "1.0T"},
-		{"2TB", 2 << 40, "2.0T"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := humanBytesCompact(tt.input)
-			if got != tt.want {
-				t.Errorf("humanBytesCompact(%d) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if got := humanBytesCompact(1536); got != "1.5K" {
+		t.Errorf("humanBytesCompact(1536) = %q, want %q", got, "1.5K")
 	}
 }
 
