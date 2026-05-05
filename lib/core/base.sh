@@ -721,6 +721,24 @@ cleanup_temp_files() {
 TRACK_SECTION=0
 SECTION_ACTIVITY=0
 
+# IMPORTANT: There are intentionally three start_section / end_section /
+# note_activity implementations across the codebase. The one that wins is the
+# one loaded last, and each variant has product-level differences (color,
+# fallback wording, dry-run export behavior). Before changing any of them,
+# read the cross references first:
+#
+#   - lib/core/base.sh   (this file): purple arrow header, "Nothing to tidy"
+#                                     fallback, no dry-run export.
+#   - bin/clean.sh:      purple arrow header, "Nothing to clean" fallback,
+#                        appends '=== title ===' to EXPORT_LIST_FILE under
+#                        DRY_RUN, stops the section spinner on close.
+#   - bin/purge.sh:      blue ━━━ box header, no fallback message, writes
+#                        each note_activity line directly to EXPORT_LIST_FILE.
+#
+# Treat this file's version as the default for everything outside the clean
+# and purge entry points. Do not unify the three blindly; the wording and
+# export semantics are user-visible.
+
 # Start a new section
 # Args: $1 - section title
 start_section() {
