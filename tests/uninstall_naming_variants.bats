@@ -146,3 +146,27 @@ setup() {
 
     [[ ! "$result" =~ "Library/Application Support"$ ]]
 }
+
+@test "find_app_files detects VS Code stable Application Support folder (#850)" {
+    mkdir -p "$HOME/Library/Application Support/Code"
+    mkdir -p "$HOME/Library/Application Support/Code - Insiders"
+    mkdir -p "$HOME/.vscode"
+
+    result=$(find_app_files "com.microsoft.VSCode" "Visual Studio Code")
+
+    [[ "$result" =~ Library/Application\ Support/Code$'\n' ]] || [[ "$result" == *"Library/Application Support/Code"* ]]
+    [[ "$result" == *"/.vscode"* ]]
+    [[ "$result" != *"Code - Insiders"* ]]
+}
+
+@test "find_app_files detects VS Code Insiders Application Support folder (#850)" {
+    mkdir -p "$HOME/Library/Application Support/Code"
+    mkdir -p "$HOME/Library/Application Support/Code - Insiders"
+    mkdir -p "$HOME/.vscode-insiders"
+
+    result=$(find_app_files "com.microsoft.VSCodeInsiders" "Visual Studio Code - Insiders")
+
+    [[ "$result" == *"Library/Application Support/Code - Insiders"* ]]
+    [[ "$result" == *"/.vscode-insiders"* ]]
+    [[ ! "$result" =~ Library/Application\ Support/Code$'\n' ]]
+}

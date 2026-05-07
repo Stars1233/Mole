@@ -1360,10 +1360,22 @@ find_app_files() {
     [[ "$app_name" =~ Godot|godot ]] && [[ -d ~/Library/Application\ Support/Godot ]] && files_to_clean+=("$HOME/Library/Application Support/Godot")
 
     # 6. Tools
+    # VS Code stores user data under folder names that don't match the app name
+    # ("Visual Studio Code") or bundle id ("com.microsoft.VSCode"). The folder is
+    # named "Code" (stable) or "Code - Insiders". Cover both channels explicitly
+    # so uninstall removes them. Issue #850.
     if [[ "$bundle_id" =~ microsoft.*[vV][sS][cC]ode ]]; then
-        [[ -d "$HOME/.vscode" ]] && files_to_clean+=("$HOME/.vscode")
         [[ -d "$HOME/Library/Caches/com.microsoft.VSCode.ShipIt" ]] && files_to_clean+=("$HOME/Library/Caches/com.microsoft.VSCode.ShipIt")
         [[ -d "$HOME/Library/Caches/com.microsoft.VSCodeInsiders.ShipIt" ]] && files_to_clean+=("$HOME/Library/Caches/com.microsoft.VSCodeInsiders.ShipIt")
+        if [[ "$bundle_id" =~ [iI]nsiders ]]; then
+            [[ -d "$HOME/.vscode-insiders" ]] && files_to_clean+=("$HOME/.vscode-insiders")
+            [[ -d "$HOME/Library/Application Support/Code - Insiders" ]] && files_to_clean+=("$HOME/Library/Application Support/Code - Insiders")
+            [[ -d "$HOME/Library/Caches/com.microsoft.VSCodeInsiders" ]] && files_to_clean+=("$HOME/Library/Caches/com.microsoft.VSCodeInsiders")
+        else
+            [[ -d "$HOME/.vscode" ]] && files_to_clean+=("$HOME/.vscode")
+            [[ -d "$HOME/Library/Application Support/Code" ]] && files_to_clean+=("$HOME/Library/Application Support/Code")
+            [[ -d "$HOME/Library/Caches/com.microsoft.VSCode" ]] && files_to_clean+=("$HOME/Library/Caches/com.microsoft.VSCode")
+        fi
     fi
     [[ "$app_name" =~ Docker ]] && [[ -d ~/.docker ]] && files_to_clean+=("$HOME/.docker")
 
