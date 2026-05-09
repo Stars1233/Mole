@@ -59,9 +59,13 @@ hint_extract_launch_agent_program_path() {
     local plist="$1"
     local program=""
 
-    program=$(plutil -extract ProgramArguments.0 raw "$plist" 2> /dev/null || echo "")
+    if ! program=$(plutil -extract ProgramArguments.0 raw "$plist" 2> /dev/null); then
+        program=""
+    fi
     if [[ -z "$program" ]]; then
-        program=$(plutil -extract Program raw "$plist" 2> /dev/null || echo "")
+        if ! program=$(plutil -extract Program raw "$plist" 2> /dev/null); then
+            program=""
+        fi
     fi
 
     printf '%s\n' "$program"
@@ -78,9 +82,13 @@ hint_extract_launch_agent_associated_bundle() {
     local plist="$1"
     local associated=""
 
-    associated=$(plutil -extract AssociatedBundleIdentifiers.0 raw "$plist" 2> /dev/null || echo "")
+    if ! associated=$(plutil -extract AssociatedBundleIdentifiers.0 raw "$plist" 2> /dev/null); then
+        associated=""
+    fi
     if [[ -z "$associated" ]] || [[ "$associated" == "1" ]]; then
-        associated=$(plutil -extract AssociatedBundleIdentifiers raw "$plist" 2> /dev/null || echo "")
+        if ! associated=$(plutil -extract AssociatedBundleIdentifiers raw "$plist" 2> /dev/null); then
+            associated=""
+        fi
         if [[ "$associated" == "{"* ]] || [[ "$associated" == "["* ]]; then
             associated=""
         fi
