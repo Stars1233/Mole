@@ -23,6 +23,18 @@ opt_numeric_kb() {
     [[ "$size_kb" =~ ^[0-9]+$ ]] && echo "$size_kb" || echo "0"
 }
 
+# Whether the current optimize run can use sudo without re-prompting.
+# Set by bin/optimize.sh after the upfront ensure_sudo_session call.
+# Test-mode env vars hard-deny so ad-hoc task calls under MOLE_TEST_NO_AUTH=1
+# (e.g. ./scripts/test.sh, manual repro) cannot reach a real sudo invocation
+# even when this helper is invoked outside the optimize entrypoint.
+optimize_sudo_available() {
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        return 1
+    fi
+    [[ "${MOLE_OPTIMIZE_SUDO_AVAILABLE:-true}" == "true" ]]
+}
+
 opt_existing_path_size_kb() {
     local path="$1"
     [[ -e "$path" ]] || {
@@ -43,6 +55,9 @@ run_launchctl_unload() {
 
     if [[ "$need_sudo" == "true" ]]; then
         if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+            return 0
+        fi
+        if ! optimize_sudo_available; then
             return 0
         fi
         sudo launchctl unload "$plist_file" 2> /dev/null || true
@@ -134,6 +149,10 @@ flush_dns_cache() {
     if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
         MOLE_DNS_FLUSHED=1
         return 0
+    fi
+
+    if ! optimize_sudo_available; then
+        return 1
     fi
 
     if sudo dscacheutil -flushcache 2> /dev/null && sudo killall -HUP mDNSResponder 2> /dev/null; then
@@ -608,6 +627,11 @@ opt_font_cache_rebuild() {
             return 0
         fi
 
+        if ! optimize_sudo_available; then
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Font cache rebuild skipped · admin access required"
+            return 0
+        fi
+
         if sudo atsutil databases -remove > /dev/null 2>&1; then
             success=true
         fi
@@ -641,6 +665,11 @@ opt_memory_pressure_relief() {
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
         if ! is_memory_pressure_high; then
             opt_msg "Memory pressure already optimal"
+            return 0
+        fi
+
+        if ! optimize_sudo_available; then
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Memory pressure relief skipped · admin access required"
             return 0
         fi
 
@@ -679,6 +708,11 @@ opt_network_stack_optimize() {
 
         if [[ "$route_ok" == "true" && "$dns_ok" == "true" ]]; then
             opt_msg "Network stack already optimal"
+            return 0
+        fi
+
+        if ! optimize_sudo_available; then
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Network stack refresh skipped · admin access required"
             return 0
         fi
 
@@ -723,6 +757,11 @@ opt_disk_permissions_repair() {
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
         if ! needs_permissions_repair; then
             opt_msg "User directory permissions already optimal"
+            return 0
+        fi
+
+        if ! optimize_sudo_available; then
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Disk permissions repair skipped · admin access required"
             return 0
         fi
 
@@ -814,6 +853,11 @@ opt_bluetooth_reset() {
                 stop_inline_spinner
             fi
             opt_msg "Bluetooth already optimal"
+        elif ! optimize_sudo_available; then
+            if [[ "$spinner_started" == "true" ]]; then
+                stop_inline_spinner
+            fi
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Bluetooth reset skipped · admin access required"
         elif sudo pkill -TERM bluetoothd > /dev/null 2>&1; then
             if [[ "$spinner_started" == "true" ]]; then
                 stop_inline_spinner
@@ -872,6 +916,10 @@ opt_spotlight_index_optimize() {
             fi
 
             if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+                if ! optimize_sudo_available; then
+                    echo -e "  ${YELLOW}${ICON_WARNING}${NC} Spotlight index rebuild skipped · admin access required"
+                    return 0
+                fi
                 echo -e "  ${BLUE}${ICON_INFO}${NC} Spotlight search is slow, rebuilding index, may take 1-2 hours"
                 if sudo mdutil -E / > /dev/null 2>&1; then
                     opt_msg "Spotlight index rebuild started"
@@ -1022,7 +1070,7 @@ opt_periodic_maintenance() {
     fi
 
     if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]] || ! sudo -n true 2> /dev/null; then
+        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]] || ! optimize_sudo_available; then
             opt_msg "Periodic maintenance skipped (requires sudo)"
             return 0
         fi

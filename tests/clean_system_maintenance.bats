@@ -1012,6 +1012,9 @@ sudo() {
 }
 export -f sudo
 
+# Sudo is mocked above; explicitly opt out of the test-mode short-circuit
+# in optimize_sudo_available so this success-path test reaches the mock.
+unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
 opt_memory_pressure_relief
 EOF
 
@@ -1110,6 +1113,9 @@ dscacheutil() {
 }
 export -f dscacheutil
 
+# Sudo is mocked above; explicitly opt out of the test-mode short-circuit
+# in optimize_sudo_available so this success-path test reaches the mock.
+unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
 opt_network_stack_optimize
 EOF
 
@@ -1181,6 +1187,9 @@ start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
 export -f start_inline_spinner stop_inline_spinner
 
+# Sudo is mocked above; explicitly opt out of the test-mode short-circuit
+# in optimize_sudo_available so this success-path test reaches the mock.
+unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
 opt_disk_permissions_repair
 EOF
 

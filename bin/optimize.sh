@@ -290,8 +290,17 @@ main() {
     done < "$opts_file"
 
     echo ""
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        ensure_sudo_session "System optimization requires admin access" || true
+    # Track sudo availability so individual tasks can skip cleanly when admin
+    # access was denied. Without this, every sudo task re-prompts for the
+    # password and half-runs after a refusal. Default true in dry-run so the
+    # task list still expands fully for inspection.
+    export MOLE_OPTIMIZE_SUDO_AVAILABLE="false"
+    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        MOLE_OPTIMIZE_SUDO_AVAILABLE="true"
+    elif ensure_sudo_session "System optimization requires admin access"; then
+        MOLE_OPTIMIZE_SUDO_AVAILABLE="true"
+    else
+        opt_msg "Skipping sudo-required optimizations: admin access not granted"
     fi
 
     export FIRST_ACTION=true

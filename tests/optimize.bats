@@ -825,3 +825,123 @@ EOF
 	[[ "$output" == *"found"* ]]
 	[[ "$output" == *"resolved by login item path"* ]]
 }
+
+@test "optimize_sudo_available returns false when sudo session was denied" {
+	run env PROJECT_ROOT="$PROJECT_ROOT" MOLE_OPTIMIZE_SUDO_AVAILABLE="false" bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/optimize/tasks.sh"
+if optimize_sudo_available; then
+	echo "WRONG: returned true under denied sudo"
+	exit 1
+fi
+echo "ok"
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "optimize_sudo_available returns false in test mode regardless of optimize entrypoint" {
+	# Ad-hoc task invocation under MOLE_TEST_NO_AUTH must hard-deny sudo
+	# even when MOLE_OPTIMIZE_SUDO_AVAILABLE was never set by bin/optimize.sh.
+	run env PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/optimize/tasks.sh"
+unset MOLE_OPTIMIZE_SUDO_AVAILABLE
+if optimize_sudo_available; then
+	echo "WRONG: leaked sudo to test-mode caller"
+	exit 1
+fi
+echo "ok"
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "flush_dns_cache does not invoke sudo under MOLE_TEST_NO_AUTH" {
+	# Reproduces the reported regression: ad-hoc flush_dns_cache under test
+	# mode used to fall through optimize_sudo_available and reach `sudo dscacheutil`.
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/tasks.sh"
+unset MOLE_OPTIMIZE_SUDO_AVAILABLE
+trace="$HOME/sudo_calls.log"
+: > "$trace"
+sudo() {
+	printf 'SUDO_CALLED:%s\n' "$*" >> "$trace"
+	return 0
+}
+export -f sudo
+
+flush_dns_cache 2>&1 || true
+
+if [[ -s "$trace" ]]; then
+	echo "WRONG: sudo invoked under test mode:"
+	cat "$trace"
+	exit 1
+fi
+echo "ok"
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "sudo-required optimize tasks short-circuit without invoking sudo when access denied" {
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+		MOLE_OPTIMIZE_SUDO_AVAILABLE="false" \
+		MOLE_DRY_RUN="0" \
+		bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/optimize/tasks.sh"
+
+trace="$HOME/sudo_calls.log"
+: > "$trace"
+sudo() {
+	printf 'sudo %s\n' "$*" >> "$trace"
+	return 0
+}
+export -f sudo
+
+# Force the "needs work" branch so each task reaches its sudo block.
+is_memory_pressure_high() { return 0; }
+needs_permissions_repair() { return 0; }
+has_active_vpn_interface() { return 1; }
+route() { return 1; }
+dscacheutil() { return 1; }
+mdutil() { echo "Indexing enabled."; }
+mdfind() { sleep 4; }
+get_epoch_seconds() { date +%s; }
+is_ac_power() { return 0; }
+browser_family_is_running() { return 1; }
+pgrep() { return 1; }
+system_profiler() { return 1; }
+plutil() { return 1; }
+defaults() { return 1; }
+get_path_size_kb() { echo "0"; }
+debug_log() { :; }
+opt_msg() { :; }
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+
+opt_memory_pressure_relief 2>&1 || true
+opt_network_stack_optimize 2>&1 || true
+opt_disk_permissions_repair 2>&1 || true
+opt_font_cache_rebuild 2>&1 || true
+opt_periodic_maintenance 2>&1 || true
+flush_dns_cache 2>&1 || true
+
+if [[ -s "$trace" ]]; then
+	echo "WRONG: sudo invoked while denied:"
+	cat "$trace"
+	exit 1
+fi
+echo "ok"
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
