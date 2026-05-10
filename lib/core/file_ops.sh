@@ -297,6 +297,10 @@ safe_remove_symlink() {
 
     local rm_exit=0
     if [[ "$use_sudo" == "true" ]]; then
+        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
+            return 1
+        fi
         sudo rm "$path" 2> /dev/null || rm_exit=$?
     else
         rm "$path" 2> /dev/null || rm_exit=$?
@@ -330,6 +334,15 @@ safe_sudo_remove() {
 
     if [[ -L "$path" ]]; then
         log_error "Refusing to sudo remove symlink: $path"
+        return 1
+    fi
+
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+            log_info "[DRY-RUN] Would sudo remove: $path"
+            return 0
+        fi
+        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
         return 1
     fi
 
@@ -464,8 +477,12 @@ mole_delete() {
         local raw_size=""
         local du_rc=0
         if [[ "$needs_sudo" == "true" ]]; then
-            raw_size=$(sudo du -skP "$path" 2> /dev/null | awk '{print $1; exit}')
-            du_rc=${PIPESTATUS[0]}
+            if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+                du_rc=1
+            else
+                raw_size=$(sudo du -skP "$path" 2> /dev/null | awk '{print $1; exit}')
+                du_rc=${PIPESTATUS[0]}
+            fi
         else
             raw_size=$(get_path_size_kb "$path" 2> /dev/null) || du_rc=$?
         fi
@@ -478,6 +495,13 @@ mole_delete() {
         debug_log "[DRY RUN] Would delete ($mode): $path"
         _mole_delete_log "$mode" "$size_kb" "dry-run" "$path"
         return 0
+    fi
+
+    if [[ "$needs_sudo" == "true" ]]; then
+        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+            _mole_delete_log "$mode" "$size_kb" "sudo-blocked-test-mode" "$path"
+            return 1
+        fi
     fi
 
     # Trash mode: attempt Trash move first, fall through to permanent removal
@@ -563,6 +587,10 @@ APPLESCRIPT
 _mole_move_sudo_path_to_user_trash() {
     local path="$1"
     local user_home=""
+
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        return 1
+    fi
 
     if declare -f get_invoking_home > /dev/null 2>&1; then
         user_home=$(get_invoking_home)
@@ -787,6 +815,11 @@ safe_sudo_find_delete() {
     local pattern="$2"
     local age_days="${3:-7}"
     local type_filter="${4:-f}"
+
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        debug_log "Skipping sudo find/delete in test mode: $base_dir"
+        return 0
+    fi
 
     # Validate base directory (use sudo for permission-restricted dirs)
     if ! sudo test -d "$base_dir" 2> /dev/null; then

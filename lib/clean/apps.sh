@@ -419,7 +419,7 @@ clean_orphaned_app_data() {
 # These are left behind when apps are uninstalled but their system services remain
 clean_orphaned_system_services() {
     # Requires sudo
-    if ! sudo -n true 2> /dev/null; then
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]] || ! sudo -n true 2> /dev/null; then
         return 0
     fi
 

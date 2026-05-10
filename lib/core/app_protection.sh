@@ -1817,7 +1817,7 @@ force_kill_app() {
 
     # If still running and sudo is available, try with sudo
     if pgrep -x "$match_pattern" > /dev/null 2>&1; then
-        if sudo -n true 2> /dev/null; then
+        if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]] && sudo -n true 2> /dev/null; then
             sudo pkill -9 -x "$match_pattern" 2> /dev/null || true
             sleep 2
         fi

@@ -69,14 +69,14 @@ _request_password() {
 request_sudo_access() {
     local prompt_msg="${1:-Admin access required}"
 
-    # Check if already have sudo access
-    if sudo -n true 2> /dev/null; then
-        return 0
-    fi
-
     # Tests must never trigger real password or Touch ID prompts.
     if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
+    fi
+
+    # Check if already have sudo access
+    if sudo -n true 2> /dev/null; then
+        return 0
     fi
 
     # Detect if running in TTY environment
@@ -246,6 +246,10 @@ _stop_sudo_keepalive() {
 
 # Check if sudo session is active
 has_sudo_session() {
+    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        return 1
+    fi
+
     sudo -n true 2> /dev/null
 }
 

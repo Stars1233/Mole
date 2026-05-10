@@ -107,6 +107,10 @@ needs_sudo() {
 
 maybe_sudo() {
     if needs_sudo; then
+        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+            log_error "Admin access required, blocked in test mode"
+            return 1
+        fi
         sudo "$@"
     else
         "$@"
@@ -609,6 +613,10 @@ install_files() {
         if [[ "$source_dir_abs" != "$install_dir_abs" ]]; then
             if needs_sudo; then
                 log_admin "Admin access required for /usr/local/bin"
+                if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+                    log_error "Admin access required, blocked in test mode"
+                    return 1
+                fi
                 sudo -v
             fi
 
