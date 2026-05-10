@@ -16,6 +16,8 @@
   <img src="https://gw.alipayobjects.com/zos/k/ro/ZzF8e8.png" alt="Mole - 95.50GB freed" width="1000" />
 </p>
 
+> **Prefer a native app?** [Mole for Mac](https://mole.fit) brings the same toolkit to a polished SwiftUI interface. $9 one-time, no subscription.
+
 ## Features
 
 - **All-in-one toolkit**: Combines CleanMyMac, AppCleaner, DaisyDisk, and iStat Menus in a **single binary**
