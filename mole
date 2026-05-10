@@ -394,6 +394,11 @@ update_mole() {
             echo -e "${ICON_REVIEW} Try again with: ${GRAY}mo update${NC}"
             exit 1
         fi
+        if [[ ! "$latest" =~ ^[Vv]?[0-9]+(\.[0-9]+)*$ ]]; then
+            log_error "Invalid version response: $latest"
+            echo -e "${ICON_REVIEW} Try again later or use: ${GRAY}mo update --nightly${NC}"
+            exit 1
+        fi
 
         if [[ "$VERSION" == "$latest" && "$force_update" != "true" ]]; then
             echo ""
@@ -409,7 +414,11 @@ update_mole() {
         echo "${download_label%...}"
     fi
 
-    local installer_url="https://raw.githubusercontent.com/tw93/mole/main/install.sh"
+    local installer_ref="main"
+    if [[ "$nightly_update" != "true" ]]; then
+        installer_ref="V${latest#V}"
+    fi
+    local installer_url="https://raw.githubusercontent.com/tw93/mole/${installer_ref}/install.sh"
     local tmp_installer
     tmp_installer="$(mktemp_file)" || {
         log_error "Update failed"

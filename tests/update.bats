@@ -4,7 +4,7 @@ setup_file() {
     PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     export PROJECT_ROOT
 
-    CURRENT_VERSION="$(grep '^VERSION=' "$PROJECT_ROOT/mole" | head -1 | sed 's/VERSION=\"\\(.*\\)\"/\\1/')"
+    CURRENT_VERSION="$(grep '^VERSION=' "$PROJECT_ROOT/mole" | head -1 | sed 's/VERSION="\(.*\)"/\1/')"
     export CURRENT_VERSION
 
     ORIGINAL_HOME="${HOME:-}"
@@ -478,45 +478,56 @@ EOF
 @test "update_mole with --force reinstalls even when on latest version" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" CURRENT_VERSION="$CURRENT_VERSION" PATH="$HOME/fake-bin:/usr/bin:/bin" TERM="dumb" bash --noprofile --norc << 'EOF'
 set -euo pipefail
-curl() {
-  local out=""
-  local url=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -o)
-        out="$2"
-        shift 2
-        ;;
-      http*://*)
-        url="$1"
-        shift
-        ;;
-      *)
-        shift
-        ;;
-    esac
-  done
+url_log="$HOME/update-url.log"
+mkdir -p "$HOME/fake-bin"
+cat > "$HOME/fake-bin/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+out=""
+url=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o)
+      out="$2"
+      shift 2
+      ;;
+    http*://*)
+      url="$1"
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
-  if [[ -n "$out" ]]; then
-    cat > "$out" << 'INSTALLER'
+[[ -n "$url" ]] && printf '%s\n' "$url" >> "$URL_LOG"
+
+if [[ -n "$out" ]]; then
+  cat > "$out" << 'INSTALLER'
 #!/usr/bin/env bash
 echo "Mole installed successfully, version $CURRENT_VERSION"
 INSTALLER
-    return 0
-  fi
+  exit 0
+fi
 
-  if [[ "$url" == *"api.github.com"* ]]; then
-    echo "{\"tag_name\":\"$CURRENT_VERSION\"}"
-  else
-    echo "VERSION=\"$CURRENT_VERSION\""
-  fi
-}
-export -f curl
+if [[ "$url" == *"api.github.com"* ]]; then
+  echo "{\"tag_name\":\"$CURRENT_VERSION\"}"
+else
+  echo "VERSION=\"$CURRENT_VERSION\""
+fi
+SCRIPT
+chmod +x "$HOME/fake-bin/curl"
 
-brew() { exit 1; }
-export -f brew
+cat > "$HOME/fake-bin/brew" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 1
+SCRIPT
+chmod +x "$HOME/fake-bin/brew"
 
-"$PROJECT_ROOT/mole" update --force
+URL_LOG="$url_log" "$PROJECT_ROOT/mole" update --force
+
+grep -q "raw.githubusercontent.com/tw93/mole/V${CURRENT_VERSION}/install.sh" "$url_log"
+! grep -q "raw.githubusercontent.com/tw93/mole/main/install.sh" "$url_log"
 EOF
 
     [ "$status" -eq 0 ]
@@ -524,46 +535,79 @@ EOF
     [[ "$output" == *"Downloading"* ]] || [[ "$output" == *"Installing"* ]] || [[ "$output" == *"Updated"* ]]
 }
 
+@test "update_mole rejects invalid stable version responses" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$HOME/fake-bin:/usr/bin:/bin" TERM="dumb" bash --noprofile --norc << 'EOF'
+set -euo pipefail
+mkdir -p "$HOME/fake-bin"
+cat > "$HOME/fake-bin/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+echo '{"tag_name":"release-candidate"}'
+SCRIPT
+chmod +x "$HOME/fake-bin/curl"
+
+cat > "$HOME/fake-bin/brew" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 1
+SCRIPT
+chmod +x "$HOME/fake-bin/brew"
+
+"$PROJECT_ROOT/mole" update --force
+EOF
+
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid version response: release-candidate"* ]]
+}
+
 @test "update_mole with --nightly uses installer path and passes MOLE_VERSION=main" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" CURRENT_VERSION="$CURRENT_VERSION" PATH="$HOME/fake-bin:/usr/bin:/bin" TERM="dumb" bash --noprofile --norc << 'EOF'
 set -euo pipefail
-curl() {
-  local out=""
-  local url=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -o)
-        out="$2"
-        shift 2
-        ;;
-      http*://*)
-        url="$1"
-        shift
-        ;;
-      *)
-        shift
-        ;;
-    esac
-  done
+url_log="$HOME/nightly-update-url.log"
+mkdir -p "$HOME/fake-bin"
+cat > "$HOME/fake-bin/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+out=""
+url=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o)
+      out="$2"
+      shift 2
+      ;;
+    http*://*)
+      url="$1"
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
-  if [[ -n "$out" ]]; then
-    cat > "$out" << 'INSTALLER'
+[[ -n "$url" ]] && printf '%s\n' "$url" >> "$URL_LOG"
+
+if [[ -n "$out" ]]; then
+  cat > "$out" << 'INSTALLER'
 #!/usr/bin/env bash
 echo "INSTALLER_MOLE_VERSION=${MOLE_VERSION:-}"
 echo "Mole installed successfully, version ${MOLE_VERSION:-unknown}"
 INSTALLER
-    return 0
-  fi
+  exit 0
+fi
 
-  echo "UNEXPECTED_CURL_URL:$url" >&2
-  return 1
-}
-export -f curl
+echo "UNEXPECTED_CURL_URL:$url" >&2
+exit 1
+SCRIPT
+chmod +x "$HOME/fake-bin/curl"
 
-brew() { return 1; }
-export -f brew
+cat > "$HOME/fake-bin/brew" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 1
+SCRIPT
+chmod +x "$HOME/fake-bin/brew"
 
-"$PROJECT_ROOT/mole" update --nightly
+URL_LOG="$url_log" "$PROJECT_ROOT/mole" update --nightly
+
+grep -q "raw.githubusercontent.com/tw93/mole/main/install.sh" "$url_log"
 EOF
 
     [ "$status" -eq 0 ]
