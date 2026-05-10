@@ -618,6 +618,66 @@ EOF
 	[[ "$result" == "FOUND" ]]
 }
 
+@test "scan_purge_targets: includes valid CACHEDIR.TAG directories in find mode" {
+	mkdir -p "$HOME/www/python-app/.custom-cache"
+	touch "$HOME/www/python-app/pyproject.toml"
+	printf 'Signature: 8a477f597d28d172789f06886806bc55\n' > "$HOME/www/python-app/.custom-cache/CACHEDIR.TAG"
+
+	scan_output=$(mktemp)
+	result=$(bash -c "
+        source '$PROJECT_ROOT/lib/clean/project.sh'
+        MO_USE_FIND=1 scan_purge_targets '$HOME/www' '$scan_output'
+        if grep -q '$HOME/www/python-app/.custom-cache' '$scan_output'; then
+            echo 'FOUND'
+        else
+            echo 'NOT_FOUND'
+        fi
+    ")
+	rm -f "$scan_output"
+
+	[[ "$result" == "FOUND" ]]
+}
+
+@test "scan_purge_targets: ignores invalid CACHEDIR.TAG signatures" {
+	mkdir -p "$HOME/www/python-app/.custom-cache"
+	touch "$HOME/www/python-app/pyproject.toml"
+	printf 'Signature: invalid\n' > "$HOME/www/python-app/.custom-cache/CACHEDIR.TAG"
+
+	scan_output=$(mktemp)
+	result=$(bash -c "
+        source '$PROJECT_ROOT/lib/clean/project.sh'
+        MO_USE_FIND=1 scan_purge_targets '$HOME/www' '$scan_output'
+        if grep -q '$HOME/www/python-app/.custom-cache' '$scan_output'; then
+            echo 'FOUND'
+        else
+            echo 'NOT_FOUND'
+        fi
+    ")
+	rm -f "$scan_output"
+
+	[[ "$result" == "NOT_FOUND" ]]
+}
+
+@test "scan_purge_targets: keeps CACHEDIR.TAG under Library out of purge scans" {
+	mkdir -p "$HOME/www/python-app/Library/fontconfig-cache"
+	touch "$HOME/www/python-app/pyproject.toml"
+	printf 'Signature: 8a477f597d28d172789f06886806bc55\n' > "$HOME/www/python-app/Library/fontconfig-cache/CACHEDIR.TAG"
+
+	scan_output=$(mktemp)
+	result=$(bash -c "
+        source '$PROJECT_ROOT/lib/clean/project.sh'
+        MO_USE_FIND=1 scan_purge_targets '$HOME/www' '$scan_output'
+        if grep -q '$HOME/www/python-app/Library/fontconfig-cache' '$scan_output'; then
+            echo 'FOUND'
+        else
+            echo 'NOT_FOUND'
+        fi
+    ")
+	rm -f "$scan_output"
+
+	[[ "$result" == "NOT_FOUND" ]]
+}
+
 @test "scan_purge_targets: trusts empty fd result without falling back to find" {
 	mkdir -p "$HOME/.config/mole" "$HOME/www/empty-project"
 	printf '%s\n' "$HOME/www" > "$HOME/.config/mole/purge_paths"

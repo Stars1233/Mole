@@ -3,8 +3,15 @@
 package main
 
 import (
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
+)
+
+const (
+	cacheDirTagFileName  = "CACHEDIR.TAG"
+	cacheDirTagSignature = "Signature: 8a477f597d28d172789f06886806bc55"
 )
 
 // isCleanableDir marks paths safe to delete manually (not handled by mo clean).
@@ -20,12 +27,40 @@ func isCleanableDir(path string) bool {
 
 	baseName := filepath.Base(path)
 
+	// CACHEDIR.TAG marks the whole directory tree as regenerable cache.
+	if hasValidCacheDirTag(path) {
+		return true
+	}
+
 	// Project dependencies and build outputs are safe.
 	if projectDependencyDirs[baseName] {
 		return true
 	}
 
 	return false
+}
+
+func hasValidCacheDirTag(path string) bool {
+	tagPath := filepath.Join(path, cacheDirTagFileName)
+	info, err := os.Lstat(tagPath)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+
+	file, err := os.Open(tagPath)
+	if err != nil {
+		return false
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	buf := make([]byte, len(cacheDirTagSignature))
+	if _, err := io.ReadFull(file, buf); err != nil {
+		return false
+	}
+
+	return string(buf) == cacheDirTagSignature
 }
 
 // isHandledByMoClean checks if a path is cleaned by mo clean.

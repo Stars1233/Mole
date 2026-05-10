@@ -82,6 +82,9 @@ readonly MOLE_PURGE_PROJECT_INDICATORS=(
     ".git"
 )
 
+readonly MOLE_CACHEDIR_TAG_NAME="CACHEDIR.TAG"
+readonly MOLE_CACHEDIR_TAG_SIGNATURE="Signature: 8a477f597d28d172789f06886806bc55"
+
 # High-noise targets intentionally excluded from quick hint scans in mo clean.
 readonly MOLE_PURGE_QUICK_HINT_EXCLUDED_TARGETS=(
     "bin"
@@ -105,6 +108,16 @@ mole_purge_is_project_root() {
     done
 
     return 1
+}
+
+mole_dir_has_cachedir_tag() {
+    local dir="$1"
+    local tag="$dir/$MOLE_CACHEDIR_TAG_NAME"
+    [[ -f "$tag" && ! -L "$tag" ]] || return 1
+
+    local signature
+    signature=$(LC_ALL=C dd bs=${#MOLE_CACHEDIR_TAG_SIGNATURE} count=1 < "$tag" 2> /dev/null || true)
+    [[ "$signature" == "$MOLE_CACHEDIR_TAG_SIGNATURE" ]]
 }
 
 mole_purge_quick_hint_target_names() {
