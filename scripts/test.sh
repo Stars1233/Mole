@@ -24,7 +24,7 @@ cleanup_test_stubs() {
 }
 trap cleanup_test_stubs EXIT
 
-cat > "$TEST_SYSTEM_STUB_DIR/sudo" <<'EOF'
+cat > "$TEST_SYSTEM_STUB_DIR/sudo" << 'EOF'
 #!/bin/bash
 case "${1:-}" in
     -k)
@@ -39,13 +39,13 @@ printf 'mole test blocked sudo: %s\n' "$*" >&2
 exit 1
 EOF
 
-cat > "$TEST_SYSTEM_STUB_DIR/osascript" <<'EOF'
+cat > "$TEST_SYSTEM_STUB_DIR/osascript" << 'EOF'
 #!/bin/bash
 printf 'mole test blocked osascript: %s\n' "$*" >&2
 exit 1
 EOF
 
-cat > "$TEST_SYSTEM_STUB_DIR/launchctl" <<'EOF'
+cat > "$TEST_SYSTEM_STUB_DIR/launchctl" << 'EOF'
 #!/bin/bash
 printf 'mole test blocked launchctl: %s\n' "$*" >&2
 exit 0
