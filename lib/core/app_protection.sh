@@ -1182,23 +1182,21 @@ find_app_files() {
     fi
     local base_lowercase=$(echo "$base_name" | tr '[:upper:]' '[:lower:]') # "Zed" -> "zed"
 
+    # Only use bundle_id in literal paths or find patterns after reverse-DNS
+    # validation. A malformed Info.plist should not be able to traverse out of
+    # Library subtrees or broaden matches with glob metacharacters.
+    local bundle_id_valid="false"
+    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && ${#bundle_id} -gt 3 ]] &&
+        [[ "$bundle_id" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+$ ]]; then
+        bundle_id_valid="true"
+    fi
+
     # Standard path patterns for user-level files
     local -a user_patterns=(
         "$HOME/Library/Application Support/$app_name"
-        "$HOME/Library/Application Support/$bundle_id"
-        "$HOME/Library/Caches/$bundle_id"
         "$HOME/Library/Caches/$app_name"
         "$HOME/Library/Logs/$app_name"
-        "$HOME/Library/Logs/$bundle_id"
         "$HOME/Library/Application Support/CrashReporter/$app_name"
-        "$HOME/Library/Saved Application State/$bundle_id.savedState"
-        "$HOME/Library/Containers/$bundle_id"
-        "$HOME/Library/WebKit/$bundle_id"
-        "$HOME/Library/WebKit/com.apple.WebKit.WebContent/$bundle_id"
-        "$HOME/Library/HTTPStorages/$bundle_id"
-        "$HOME/Library/HTTPStorages/$bundle_id.binarycookies"
-        "$HOME/Library/Cookies/$bundle_id.binarycookies"
-        "$HOME/Library/Application Scripts/$bundle_id"
         "$HOME/Library/Services/$app_name.workflow"
         "$HOME/Library/QuickLook/$app_name.qlgenerator"
         "$HOME/Library/Internet Plug-Ins/$app_name.plugin"
@@ -1208,10 +1206,8 @@ find_app_files() {
         "$HOME/Library/Audio/Plug-Ins/Digidesign/$app_name.dpm"
         "$HOME/Library/PreferencePanes/$app_name.prefPane"
         "$HOME/Library/Input Methods/$app_name.app"
-        "$HOME/Library/Input Methods/$bundle_id.app"
         "$HOME/Library/Screen Savers/$app_name.saver"
         "$HOME/Library/Frameworks/$app_name.framework"
-        "$HOME/Library/Autosave Information/$bundle_id"
         "$HOME/Library/Contextual Menu Items/$app_name.plugin"
         "$HOME/Library/Spotlight/$app_name.mdimporter"
         "$HOME/Library/ColorPickers/$app_name.colorPicker"
@@ -1220,11 +1216,29 @@ find_app_files() {
         "$HOME/.local/share/$app_name"
         "$HOME/.$app_name"
         "$HOME/.$app_name"rc
-        "$HOME/Library/SyncedPreferences/$bundle_id.plist"
         "$HOME/Library/Address Book Plug-Ins/$app_name.bundle"
         "$HOME/Library/Accessibility/$app_name.bundle"
         "$HOME/Library/Mail/Bundles/$app_name.mailbundle"
     )
+
+    if [[ "$bundle_id_valid" == "true" ]]; then
+        user_patterns+=(
+            "$HOME/Library/Application Support/$bundle_id"
+            "$HOME/Library/Caches/$bundle_id"
+            "$HOME/Library/Logs/$bundle_id"
+            "$HOME/Library/Saved Application State/$bundle_id.savedState"
+            "$HOME/Library/Containers/$bundle_id"
+            "$HOME/Library/WebKit/$bundle_id"
+            "$HOME/Library/WebKit/com.apple.WebKit.WebContent/$bundle_id"
+            "$HOME/Library/HTTPStorages/$bundle_id"
+            "$HOME/Library/HTTPStorages/$bundle_id.binarycookies"
+            "$HOME/Library/Cookies/$bundle_id.binarycookies"
+            "$HOME/Library/Application Scripts/$bundle_id"
+            "$HOME/Library/Input Methods/$bundle_id.app"
+            "$HOME/Library/Autosave Information/$bundle_id"
+            "$HOME/Library/SyncedPreferences/$bundle_id.plist"
+        )
+    fi
 
     # Add all naming variants to cover inconsistent app directory naming
     # Issue #377: Apps create directories with various naming conventions
@@ -1260,7 +1274,7 @@ find_app_files() {
 
     # Issue #422: Zed channel builds can leave data under another channel bundle id.
     # Example: uninstalling dev.zed.Zed-Nightly should also detect dev.zed.Zed-Preview leftovers.
-    if [[ "$bundle_id" =~ ^dev\.zed\.Zed- ]] && [[ -d "$HOME/Library/HTTPStorages" ]]; then
+    if [[ "$bundle_id_valid" == "true" && "$bundle_id" =~ ^dev\.zed\.Zed- ]] && [[ -d "$HOME/Library/HTTPStorages" ]]; then
         while IFS= read -r -d '' zed_http_storage; do
             files_to_clean+=("$zed_http_storage")
         done < <(command find "$HOME/Library/HTTPStorages" -maxdepth 1 -name "dev.zed.Zed-*" -print0 2> /dev/null)
@@ -1296,18 +1310,23 @@ find_app_files() {
     # Many professional apps store the product under a vendor folder rather
     # than directly under Application Support. Match only when the vendor token
     # comes from the bundle id to avoid broad name-only deletion.
-    local vendor_nested_path
-    while IFS= read -r vendor_nested_path; do
-        [[ -n "$vendor_nested_path" && -e "$vendor_nested_path" ]] && files_to_clean+=("$vendor_nested_path")
-    done < <(
-        find_vendor_nested_app_paths "$bundle_id" "$app_name" \
-            "$HOME/Library/Application Support" \
-            "$HOME/Library/Caches" \
-            "$HOME/Library/Logs"
-    )
+    if [[ "$bundle_id_valid" == "true" ]]; then
+        local vendor_nested_path
+        while IFS= read -r vendor_nested_path; do
+            [[ -n "$vendor_nested_path" && -e "$vendor_nested_path" ]] && files_to_clean+=("$vendor_nested_path")
+        done < <(
+            find_vendor_nested_app_paths "$bundle_id" "$app_name" \
+                "$HOME/Library/Application Support" \
+                "$HOME/Library/Caches" \
+                "$HOME/Library/Logs"
+        )
+    fi
 
-    # Handle Preferences and ByHost variants (only if bundle_id is valid)
-    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && ${#bundle_id} -gt 3 ]]; then
+    # Handle Preferences and ByHost variants (only if bundle_id is valid).
+    # Reverse-DNS check rejects malformed bundle ids before they reach any
+    # find -name pattern. Without this, a bundle id containing glob metachars
+    # (* ? [) or path separators could over-match unrelated user containers.
+    if [[ "$bundle_id_valid" == "true" ]]; then
         [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
         [[ -d ~/Library/Preferences/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id")
         [[ -d ~/Library/Preferences/ByHost ]] && while IFS= read -r -d '' pref; do
@@ -1357,7 +1376,8 @@ find_app_files() {
     fi
 
     # Shared file lists (.sfl4 - recent documents etc.)
-    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" ]] && [[ -d "$HOME/Library/Application Support/com.apple.sharedfilelist" ]]; then
+    if [[ "$bundle_id_valid" == "true" ]] &&
+        [[ -d "$HOME/Library/Application Support/com.apple.sharedfilelist" ]]; then
         while IFS= read -r -d '' sfl4_file; do
             files_to_clean+=("$sfl4_file")
         done < <(command find "$HOME/Library/Application Support/com.apple.sharedfilelist" -maxdepth 2 -name "${bundle_id}.sfl4" -print0 2> /dev/null)
@@ -1386,17 +1406,30 @@ find_app_files() {
         fi
     fi
 
-    # Handle specialized toolchains and development environments
+    # Handle specialized toolchains and development environments.
+    # IMPORTANT: never auto-collect user project source, signing keys, OAuth
+    # tokens, AVD images, SDK installs, or other manually-curated data. Only
+    # regenerable cache/derived paths belong here. If a toolchain dir is mixed
+    # (config + cache), skip the whole tree rather than guess.
     # 1. DevEco-Studio (Huawei)
     if [[ "$app_name" =~ DevEco|deveco ]] || [[ "$bundle_id" =~ huawei.*deveco ]]; then
-        for d in ~/DevEcoStudioProjects ~/DevEco-Studio ~/Library/Application\ Support/Huawei ~/Library/Caches/Huawei ~/Library/Logs/Huawei ~/Library/Huawei ~/Huawei ~/HarmonyOS ~/.huawei ~/.ohos; do
+        # Skipped: ~/DevEcoStudioProjects, ~/HarmonyOS, ~/Huawei (project
+        # source); ~/DevEco-Studio (IDE config + license state); ~/Library/
+        # Application Support/Huawei, ~/Library/Huawei, ~/.huawei, ~/.ohos
+        # (Huawei account tokens, signed device profiles, SDK config). Only
+        # sweep cache and log roots; everything else is opt-in.
+        for d in ~/Library/Caches/Huawei ~/Library/Logs/Huawei; do
             [[ -d "$d" ]] && files_to_clean+=("$d")
         done
     fi
 
     # 2. Android Studio (Google)
     if [[ "$app_name" =~ Android.*Studio|android.*studio ]] || [[ "$bundle_id" =~ google.*android.*studio|jetbrains.*android ]]; then
-        for d in ~/AndroidStudioProjects ~/Library/Android ~/.android; do
+        # Skipped: ~/AndroidStudioProjects (project source), ~/Library/Android
+        # (SDK installs, multi-GB), ~/.android root (debug.keystore signing
+        # key, adbkey device pairing, avd/ images). Only sweep regenerable
+        # caches under ~/.android.
+        for d in ~/.android/cache ~/.android/build-cache ~/.android/breakpad; do
             [[ -d "$d" ]] && files_to_clean+=("$d")
         done
         [[ -d ~/Library/Application\ Support/Google ]] && while IFS= read -r -d '' d; do files_to_clean+=("$d"); done < <(command find ~/Library/Application\ Support/Google -maxdepth 1 -name "AndroidStudio*" -print0 2> /dev/null)
@@ -1404,7 +1437,19 @@ find_app_files() {
 
     # 3. Xcode (Apple)
     if [[ "$app_name" =~ Xcode|xcode ]] || [[ "$bundle_id" =~ apple.*xcode ]]; then
-        [[ -d ~/Library/Developer ]] && files_to_clean+=("$HOME/Library/Developer")
+        # Skipped: ~/Library/Developer root (Toolchains, Archives, UserData,
+        # CoreSimulator/Devices, provisioning profiles). Only sweep
+        # regenerable build/device caches.
+        for d in \
+            "$HOME/Library/Developer/Xcode/DerivedData" \
+            "$HOME/Library/Developer/Xcode/iOS DeviceSupport" \
+            "$HOME/Library/Developer/Xcode/macOS DeviceSupport" \
+            "$HOME/Library/Developer/Xcode/watchOS DeviceSupport" \
+            "$HOME/Library/Developer/Xcode/tvOS DeviceSupport" \
+            "$HOME/Library/Developer/Xcode/xrOS DeviceSupport" \
+            "$HOME/Library/Developer/CoreSimulator/Caches"; do
+            [[ -d "$d" ]] && files_to_clean+=("$d")
+        done
         [[ -d ~/.Xcode ]] && files_to_clean+=("$HOME/.Xcode")
     fi
 
@@ -1438,7 +1483,14 @@ find_app_files() {
             [[ -d "$HOME/Library/Caches/com.microsoft.VSCode" ]] && files_to_clean+=("$HOME/Library/Caches/com.microsoft.VSCode")
         fi
     fi
-    [[ "$app_name" =~ Docker ]] && [[ -d ~/.docker ]] && files_to_clean+=("$HOME/.docker")
+    # Docker: ~/.docker holds config.json (Docker Hub auth tokens), contexts/
+    # (kubeconfig-style endpoints, possibly with credentials), and cli-plugins.
+    # Only sweep regenerable cache subtrees, never the whole tree.
+    if [[ "$app_name" =~ Docker ]]; then
+        for d in ~/.docker/buildx ~/.docker/scan; do
+            [[ -d "$d" ]] && files_to_clean+=("$d")
+        done
+    fi
 
     # 6.1 Maestro Studio
     if [[ "$bundle_id" == "com.maestro.studio" ]] || [[ "$lowercase_name" =~ maestro[[:space:]]*studio ]]; then

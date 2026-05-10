@@ -774,10 +774,12 @@ batch_uninstall_applications() {
                 fi
 
                 # ByHost preferences (machine-specific).
+                # User-owned plists, so route through user-mode mole_delete to
+                # avoid prompting for sudo when uninstalling a normal app.
                 if [[ -d "$HOME/Library/Preferences/ByHost" ]]; then
                     if [[ "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]]; then
                         while IFS= read -r -d '' plist_file; do
-                            mole_delete "$plist_file" "true" || true
+                            mole_delete "$plist_file" "false" || true
                         done < <(command find "$HOME/Library/Preferences/ByHost" -maxdepth 1 -type f -name "${bundle_id}.*.plist" -print0 2> /dev/null || true)
                     else
                         debug_log "Skipping ByHost cleanup, invalid bundle id: $bundle_id"
