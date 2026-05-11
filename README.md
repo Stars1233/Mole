@@ -16,6 +16,10 @@
   <img src="https://gw.alipayobjects.com/zos/k/ro/ZzF8e8.png" alt="Mole - 95.50GB freed" width="1000" />
 </p>
 
+> **Mole Mac App** -- the native GUI companion with five tools in one window.
+> [$9 lifetime](https://mole.fit), use code **MOLEMAC** for 20% off through May 23.
+> [Download](https://mole.fit/download) | [Buy $7.20](https://checkout.dodopayments.com/buy/pdt_0NeAQjL4YEqzkukadjRUT?discount_code=MOLEMAC)
+
 ## Features
 
 - **All-in-one toolkit**: Combines CleanMyMac, AppCleaner, DaisyDisk, and iStat Menus in a **single binary**
