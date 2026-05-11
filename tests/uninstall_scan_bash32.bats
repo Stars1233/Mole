@@ -125,3 +125,41 @@ EOF
 	run grep -q 'unbound variable' "$HOME/scan.err"
 	[ "$status" -ne 0 ]
 }
+
+@test "scan_applications includes Artpaper's two-segment bundle id (#861)" {
+	src="$HOME/uninstall_source.sh"
+	sourceable_uninstall_sh "$src"
+
+	apps_root="$HOME/Applications"
+	app_path="$apps_root/Artpaper.app"
+	mkdir -p "$app_path/Contents"
+	cat > "$app_path/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>andriiliakh.Artpaper</string>
+    <key>CFBundleName</key>
+    <string>Artpaper</string>
+</dict>
+</plist>
+PLIST
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
+		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		/bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+
+# shellcheck source=/dev/null
+source "$SRC_PATH"
+
+uninstall_print_app_search_dirs() { printf '%s\n' "$APPS_ROOT"; }
+
+apps_file=$(scan_applications)
+cat "$apps_file"
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"|$app_path|Artpaper|andriiliakh.Artpaper|"* ]]
+}
