@@ -1533,6 +1533,7 @@ clean_virtualization_tools() {
     safe_clean ~/Library/Caches/com.parallels.* "Parallels cache"
     clean_utm_caches
     safe_clean ~/VirtualBox\ VMs/.cache "VirtualBox cache"
+    safe_clean ~/Library/Caches/lima/download/by-url-sha256/* "Lima download cache"
     safe_clean ~/.vagrant.d/tmp/* "Vagrant temporary files"
 }
 
