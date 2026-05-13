@@ -503,8 +503,9 @@ scan_purge_targets() {
         # Trust fd when it exits successfully, including an empty result set.
         # Empty scans are common in healthy project trees; falling back to find
         # doubles the scan cost and can make "nothing to clean" feel slow.
-        if fd "${fd_args[@]}" "$pattern" "$search_path" 2> /dev/null > "$output_file.raw"; then
-            fd "${fd_tag_args[@]}" "^${MOLE_CACHEDIR_TAG_NAME}$" "$search_path" \
+        local _scan_timeout="${MO_PURGE_SCAN_TIMEOUT_SEC:-60}"
+        if run_with_timeout "$_scan_timeout" fd "${fd_args[@]}" "$pattern" "$search_path" 2> /dev/null > "$output_file.raw"; then
+            run_with_timeout "$_scan_timeout" fd "${fd_tag_args[@]}" "^${MOLE_CACHEDIR_TAG_NAME}$" "$search_path" \
                 2> /dev/null | emit_valid_cachedir_tag_dirs >> "$output_file.raw" || true
             debug_log "Using fd for scanning"
             process_scan_results "$output_file.raw"
@@ -534,12 +535,13 @@ scan_purge_targets() {
 
         # Use plain `find` here for compatibility with environments where
         # `command find` behaves inconsistently in this complex expression.
-        find "$search_path" -mindepth "$min_depth" -maxdepth "$max_depth" -type d \
+        local _scan_timeout="${MO_PURGE_SCAN_TIMEOUT_SEC:-60}"
+        run_with_timeout "$_scan_timeout" find "$search_path" -mindepth "$min_depth" -maxdepth "$max_depth" -type d \
             \( "${prune_expr[@]}" \) -prune -o \
             \( "${target_expr[@]}" \) -print -prune \
             2> /dev/null > "$output_file.raw" || true
 
-        find "$search_path" -mindepth "$cachedir_tag_min_depth" -maxdepth "$cachedir_tag_max_depth" \
+        run_with_timeout "$_scan_timeout" find "$search_path" -mindepth "$cachedir_tag_min_depth" -maxdepth "$cachedir_tag_max_depth" \
             \( "${prune_expr[@]}" \) -prune -o \
             -type f -name "$MOLE_CACHEDIR_TAG_NAME" -print \
             2> /dev/null | emit_valid_cachedir_tag_dirs >> "$output_file.raw" || true
@@ -710,20 +712,27 @@ select_purge_categories() {
         fi
         terminal_restored=true
 
+        # Clear traps first to prevent re-entrant firing during eval below.
         trap - EXIT INT TERM
+
+        # Restore terminal state before re-installing caller traps, so the
+        # terminal is always usable even if a restored trap handler exits.
         show_cursor
         if [[ -n "${original_stty:-}" ]]; then
             stty "${original_stty}" 2> /dev/null || stty sane 2> /dev/null || true
         fi
-        if [[ -n "$previous_exit_trap" ]]; then
-            eval "$previous_exit_trap"
-        fi
-        if [[ -n "$previous_int_trap" ]]; then
-            eval "$previous_int_trap"
-        fi
-        if [[ -n "$previous_term_trap" ]]; then
-            eval "$previous_term_trap"
-        fi
+
+        # Snapshot and clear saved traps before eval to prevent infinite
+        # recursion if the restored handler triggers another signal.
+        local _prev_exit="$previous_exit_trap"
+        local _prev_int="$previous_int_trap"
+        local _prev_term="$previous_term_trap"
+        previous_exit_trap=""
+        previous_int_trap=""
+        previous_term_trap=""
+        [[ -n "$_prev_exit" ]] && eval "$_prev_exit"
+        [[ -n "$_prev_int" ]] && eval "$_prev_int"
+        [[ -n "$_prev_term" ]] && eval "$_prev_term"
     }
     # shellcheck disable=SC2329
     handle_interrupt() {
@@ -1016,7 +1025,10 @@ clean_project_artifacts() {
     scan_pids=()
     scan_temps=()
     # shellcheck disable=SC2329
+    _cleanup_scan_done=false
     cleanup_scan() {
+        [[ "$_cleanup_scan_done" == "true" ]] && return
+        _cleanup_scan_done=true
         # Kill all background scans
         for pid in "${scan_pids[@]+"${scan_pids[@]}"}"; do
             kill "$pid" 2> /dev/null || true
@@ -1121,6 +1133,30 @@ clean_project_artifacts() {
         _max_size_jobs=8
     fi
 
+    # Reap any finished PID from the sliding window. Uses `wait -n` when
+    # available (bash 4.3+) to avoid blocking on the slowest job; falls
+    # back to first-PID wait on macOS default bash 3.2.
+    local _has_wait_n=false
+    if [[ "${BASH_VERSINFO[0]:-0}" -gt 4 ]] ||
+        { [[ "${BASH_VERSINFO[0]:-0}" -eq 4 ]] && [[ "${BASH_VERSINFO[1]:-0}" -ge 3 ]]; }; then
+        _has_wait_n=true
+    fi
+    _reap_one_size_pid() {
+        if [[ "$_has_wait_n" == "true" ]]; then
+            wait -n "${_size_pids[@]}" 2> /dev/null || true
+            local -a _remaining=()
+            for _p in "${_size_pids[@]}"; do
+                if kill -0 "$_p" 2> /dev/null; then
+                    _remaining+=("$_p")
+                fi
+            done
+            _size_pids=("${_remaining[@]}")
+        else
+            wait "${_size_pids[0]}" 2> /dev/null || true
+            _size_pids=("${_size_pids[@]:1}")
+        fi
+    }
+
     for _sz_item in "${safe_to_clean[@]}"; do
         local _stmp
         _stmp=$(mktemp)
@@ -1130,8 +1166,7 @@ clean_project_artifacts() {
         _size_pids+=($!)
 
         if [[ ${#_size_pids[@]} -ge $_max_size_jobs ]]; then
-            wait "${_size_pids[0]}" 2> /dev/null || true
-            _size_pids=("${_size_pids[@]:1}")
+            _reap_one_size_pid
         fi
     done
     for _spid in "${_size_pids[@]+"${_size_pids[@]}"}"; do

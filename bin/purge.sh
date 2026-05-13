@@ -179,7 +179,12 @@ perform_purge() {
             # Set up trap to exit cleanly (erase the spinner line via /dev/tty)
             trap 'printf "\r\033[2K" >/dev/tty 2>/dev/null; exit 0' INT TERM
 
+            local _parent_pid=$$
             while [[ -f "$stats_dir/purge_scanning" ]]; do
+                # Exit if parent process died (prevents orphaned spinner)
+                if ! kill -0 "$_parent_pid" 2> /dev/null; then
+                    break
+                fi
                 local current_path
                 current_path=$(cat "$stats_dir/purge_scanning" 2> /dev/null || echo "")
 
