@@ -130,6 +130,7 @@ EOF
 }
 
 @test "scan_installed_apps keeps find traversal options before predicates" {
+    rm -f "$HOME/.cache/mole/installed_apps_cache"
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=1 bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
