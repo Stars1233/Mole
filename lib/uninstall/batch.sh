@@ -110,7 +110,7 @@ stop_launch_services() {
 
     # Validate bundle_id format: must be reverse-DNS style (e.g., com.example.app)
     # This prevents glob injection attacks if bundle_id contains special characters
-    if [[ ! "$bundle_id" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+$ ]]; then
+    if ! mole_is_reverse_dns_bundle_id "$bundle_id"; then
         debug_log "Invalid bundle_id format for LaunchAgent search: $bundle_id"
         return 0
     fi
@@ -118,19 +118,19 @@ stop_launch_services() {
     if [[ -d ~/Library/LaunchAgents ]]; then
         while IFS= read -r -d '' plist; do
             launchctl unload "$plist" 2> /dev/null || true
-        done < <(find ~/Library/LaunchAgents -maxdepth 1 -name "${bundle_id}*.plist" -print0 2> /dev/null)
+        done < <(find ~/Library/LaunchAgents -maxdepth 1 \( -name "${bundle_id}.plist" -o -name "${bundle_id}.*.plist" \) -print0 2> /dev/null)
     fi
 
     if [[ "$has_system_files" == "true" && "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
         if [[ -d /Library/LaunchAgents ]]; then
             while IFS= read -r -d '' plist; do
                 sudo launchctl unload "$plist" 2> /dev/null || true
-            done < <(find /Library/LaunchAgents -maxdepth 1 -name "${bundle_id}*.plist" -print0 2> /dev/null)
+            done < <(find /Library/LaunchAgents -maxdepth 1 \( -name "${bundle_id}.plist" -o -name "${bundle_id}.*.plist" \) -print0 2> /dev/null)
         fi
         if [[ -d /Library/LaunchDaemons ]]; then
             while IFS= read -r -d '' plist; do
                 sudo launchctl unload "$plist" 2> /dev/null || true
-            done < <(find /Library/LaunchDaemons -maxdepth 1 -name "${bundle_id}*.plist" -print0 2> /dev/null)
+            done < <(find /Library/LaunchDaemons -maxdepth 1 \( -name "${bundle_id}.plist" -o -name "${bundle_id}.*.plist" \) -print0 2> /dev/null)
         fi
     fi
 
@@ -773,7 +773,7 @@ batch_uninstall_applications() {
             fi
 
             # Defaults writes are side effects that should never run in dry-run mode.
-            if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            if mole_is_reverse_dns_bundle_id "$bundle_id"; then
                 if is_uninstall_dry_run; then
                     debug_log "[DRY RUN] Would clear defaults domain: $bundle_id"
                 else
@@ -786,13 +786,9 @@ batch_uninstall_applications() {
                 # User-owned plists, so route through user-mode mole_delete to
                 # avoid prompting for sudo when uninstalling a normal app.
                 if [[ -d "$HOME/Library/Preferences/ByHost" ]]; then
-                    if [[ "$bundle_id" =~ ^[A-Za-z0-9._-]+$ ]]; then
-                        while IFS= read -r -d '' plist_file; do
-                            mole_delete "$plist_file" "false" || true
-                        done < <(command find "$HOME/Library/Preferences/ByHost" -maxdepth 1 -type f -name "${bundle_id}.*.plist" -print0 2> /dev/null || true)
-                    else
-                        debug_log "Skipping ByHost cleanup, invalid bundle id: $bundle_id"
-                    fi
+                    while IFS= read -r -d '' plist_file; do
+                        mole_delete "$plist_file" "false" || true
+                    done < <(command find "$HOME/Library/Preferences/ByHost" -maxdepth 1 -type f -name "${bundle_id}.*.plist" -print0 2> /dev/null || true)
                 fi
             fi
 
@@ -829,8 +825,16 @@ batch_uninstall_applications() {
             fi
 
             # Check for orphaned system extensions (camera, network, endpoint security, etc.)
-            if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && "$bundle_id" =~ ^[A-Za-z0-9._-]+$ && -d /Library/SystemExtensions ]]; then
-                if command find /Library/SystemExtensions -maxdepth 3 -name "*.systemextension" -path "*${bundle_id}*" -print -quit 2> /dev/null | grep -q .; then
+            if mole_is_reverse_dns_bundle_id "$bundle_id" && [[ -d /Library/SystemExtensions ]]; then
+                local system_extension_path=""
+                local has_bundle_system_extension=false
+                while IFS= read -r -d '' system_extension_path; do
+                    if mole_name_starts_with_bundle_id_boundary "$system_extension_path" "$bundle_id"; then
+                        has_bundle_system_extension=true
+                        break
+                    fi
+                done < <(command find /Library/SystemExtensions -maxdepth 3 -name "*.systemextension" -print0 2> /dev/null)
+                if [[ "$has_bundle_system_extension" == "true" ]]; then
                     system_extension_warning_apps+=("$app_name")
                 fi
             fi

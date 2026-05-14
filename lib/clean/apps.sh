@@ -220,7 +220,7 @@ is_bundle_orphaned() {
 
     # 6. Slow path: mdfind fallback with file-based caching (Bash 3.2 compatible)
     # This catches apps installed in non-standard locations
-    if [[ -n "$bundle_id" ]] && [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] && [[ ${#bundle_id} -ge 5 ]]; then
+    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
         # Initialize cache file if needed
         if [[ -z "$ORPHAN_MDFIND_CACHE_FILE" ]]; then
             ensure_mole_temp_root
@@ -496,7 +496,7 @@ clean_orphaned_system_services() {
             esac
         done
 
-        if [[ -n "$bundle_id" ]] && [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] && [[ ${#bundle_id} -ge 5 ]]; then
+        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
             if [[ -z "$mdfind_cache_file" ]]; then
                 ensure_mole_temp_root
                 mdfind_cache_file=$(mktemp "$MOLE_RESOLVED_TMPDIR/mole_mdfind_cache.XXXXXX")
@@ -800,7 +800,7 @@ clean_orphaned_container_stubs() {
                 ;;
         esac
 
-        if [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] && [[ ${#bundle_id} -ge 5 ]]; then
+        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
             local app_found
             app_found=$(run_with_timeout 5 mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null | head -1 || echo "")
             [[ -n "$app_found" ]] && return 0

@@ -29,8 +29,8 @@ bundle_has_installed_app() {
     local bundle_id="$1"
     [[ -z "$bundle_id" ]] && return 1
 
-    # Reject obviously malformed IDs to avoid feeding junk into mdfind/find.
-    [[ "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]] || return 1
+    # Reject malformed IDs to avoid feeding junk into mdfind/find.
+    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
 
     # Fast path: Spotlight. Gated with a timeout because mdfind has been known
     # to wedge on misconfigured indexes.

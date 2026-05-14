@@ -413,6 +413,8 @@ EOF
 @test "stop_launch_services unloads launch agents without deleting plists" {
 	mkdir -p "$HOME/Library/LaunchAgents"
 	touch "$HOME/Library/LaunchAgents/com.example.TestApp.plist"
+	touch "$HOME/Library/LaunchAgents/com.example.TestApp.helper.plist"
+	touch "$HOME/Library/LaunchAgents/com.example.TestApplication.plist"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
 set -euo pipefail
@@ -434,9 +436,13 @@ safe_sudo_remove() {
 
 stop_launch_services "com.example.TestApp" "false" ""
 
-grep -q "launchctl unload" "$trace"
-! grep -q "safe_remove" "$trace"
-[[ -f "$HOME/Library/LaunchAgents/com.example.TestApp.plist" ]]
+	grep -Fq "launchctl unload $HOME/Library/LaunchAgents/com.example.TestApp.plist" "$trace"
+	grep -Fq "launchctl unload $HOME/Library/LaunchAgents/com.example.TestApp.helper.plist" "$trace"
+	! grep -Fq "com.example.TestApplication.plist" "$trace"
+	! grep -q "safe_remove" "$trace"
+	[[ -f "$HOME/Library/LaunchAgents/com.example.TestApp.plist" ]]
+	[[ -f "$HOME/Library/LaunchAgents/com.example.TestApp.helper.plist" ]]
+	[[ -f "$HOME/Library/LaunchAgents/com.example.TestApplication.plist" ]]
 EOF
 
 	[ "$status" -eq 0 ]

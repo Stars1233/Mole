@@ -549,6 +549,32 @@ bytes_to_human_kb() {
     bytes_to_human "$((${1:-0} * 1024))"
 }
 
+mole_is_reverse_dns_bundle_id() {
+    local bundle_id="${1:-}"
+
+    [[ -n "$bundle_id" && "$bundle_id" != "unknown" ]] || return 1
+    [[ "$bundle_id" =~ ^[A-Za-z0-9][-A-Za-z0-9]*(\.[A-Za-z0-9][-A-Za-z0-9]*)+$ ]]
+}
+
+mole_name_starts_with_bundle_id_boundary() {
+    local name="${1##*/}"
+    local bundle_id="${2:-}"
+
+    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    [[ "$name" == "$bundle_id" ||
+        "$name" == "$bundle_id".* ]]
+}
+
+mole_name_has_bundle_id_boundary() {
+    local name="${1##*/}"
+    local bundle_id="${2:-}"
+
+    mole_name_starts_with_bundle_id_boundary "$name" "$bundle_id" && return 0
+    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    [[ "$name" == *."$bundle_id" ||
+        "$name" == *."$bundle_id".* ]]
+}
+
 # Colorize an already-formatted human size string by unit.
 colorize_human_size() {
     local size_human="$1"

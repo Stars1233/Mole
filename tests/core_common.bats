@@ -62,6 +62,84 @@ EOF
     [ "$output" = "ok" ]
 }
 
+@test "mole_is_reverse_dns_bundle_id rejects defaults domains and glob-like ids" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+
+for valid in "com.example.App" "andriiliakh.Artpaper" "dev.zed.Zed-Nightly" "org.keepassxc.KeePassXC"; do
+    mole_is_reverse_dns_bundle_id "$valid" || {
+        echo "valid rejected: $valid"
+        exit 1
+    }
+done
+
+for invalid in "-g" "NSGlobalDomain" "com-example" "com.foo.*" "com.foo.[abc]" "unknown" ""; do
+    if mole_is_reverse_dns_bundle_id "$invalid"; then
+        echo "invalid accepted: $invalid"
+        exit 1
+    fi
+done
+EOF
+
+    [ "$status" -eq 0 ]
+}
+
+@test "mole_name_has_bundle_id_boundary rejects sibling bundle prefixes" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+
+bundle_id="com.example.TestApp"
+
+for valid in \
+    "com.example.TestApp.plist" \
+    "com.example.TestApp.helper.plist" \
+    "/tmp/com.example.TestApp.pkg.bom"; do
+    mole_name_starts_with_bundle_id_boundary "$valid" "$bundle_id" || {
+        echo "valid start boundary rejected: $valid"
+        exit 1
+    }
+done
+
+for invalid in \
+    "group.com.example.TestApp" \
+    "TEAM.com.example.TestApp.FileProvider" \
+    "com.example.TestApplication.plist"; do
+    if mole_name_starts_with_bundle_id_boundary "$invalid" "$bundle_id"; then
+        echo "sibling start boundary accepted: $invalid"
+        exit 1
+    fi
+done
+
+for valid in \
+    "com.example.TestApp.plist" \
+    "com.example.TestApp.helper.plist" \
+    "group.com.example.TestApp" \
+    "TEAM.com.example.TestApp.FileProvider" \
+    "/tmp/com.example.TestApp.pkg.bom"; do
+    mole_name_has_bundle_id_boundary "$valid" "$bundle_id" || {
+        echo "valid boundary rejected: $valid"
+        exit 1
+    }
+done
+
+for invalid in \
+    "com.example.TestApplication.plist" \
+    "group.com.example.TestApplication" \
+    "xcom.example.TestApp" \
+    "com.example.TestAppHelper.plist" \
+    "com-example-TestApp.plist"; do
+    if mole_name_has_bundle_id_boundary "$invalid" "$bundle_id"; then
+        echo "sibling boundary accepted: $invalid"
+        exit 1
+    fi
+done
+EOF
+
+    [ "$status" -eq 0 ]
+}
+
 @test "log_info prints message and appends to log file" {
     local message="Informational message from test"
     local stdout_output

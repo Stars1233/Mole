@@ -1024,8 +1024,8 @@ clean_project_artifacts() {
     # Note: Declared without 'local' so cleanup_scan trap can access them
     scan_pids=()
     scan_temps=()
-    # shellcheck disable=SC2329
     _cleanup_scan_done=false
+    # shellcheck disable=SC2329
     cleanup_scan() {
         [[ "$_cleanup_scan_done" == "true" ]] && return
         _cleanup_scan_done=true

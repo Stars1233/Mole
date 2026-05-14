@@ -1041,7 +1041,7 @@ _mole_uninstall_is_common_app_name() {
 
 _mole_uninstall_vendor_product_tokens() {
     local bundle_id="${1:-}"
-    [[ "$bundle_id" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+$ ]] || return 1
+    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
 
     local product_token="${bundle_id##*.}"
     local without_product="${bundle_id%.*}"
@@ -1186,8 +1186,7 @@ find_app_files() {
     # validation. A malformed Info.plist should not be able to traverse out of
     # Library subtrees or broaden matches with glob metacharacters.
     local bundle_id_valid="false"
-    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && ${#bundle_id} -gt 3 ]] &&
-        [[ "$bundle_id" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+$ ]]; then
+    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
         bundle_id_valid="true"
     fi
 
@@ -1330,8 +1329,10 @@ find_app_files() {
         [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
         [[ -d ~/Library/Preferences/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id")
         [[ -d ~/Library/Preferences/ByHost ]] && while IFS= read -r -d '' pref; do
-            files_to_clean+=("$pref")
-        done < <(command find ~/Library/Preferences/ByHost -maxdepth 1 \( -name "$bundle_id*.plist" \) -print0 2> /dev/null)
+            if mole_name_starts_with_bundle_id_boundary "$pref" "$bundle_id"; then
+                files_to_clean+=("$pref")
+            fi
+        done < <(command find ~/Library/Preferences/ByHost -maxdepth 1 -type f -name "*.plist" -print0 2> /dev/null)
 
         # User LaunchAgents: wildcard scan for helper plists (e.g., com.example.app.helper.plist)
         [[ -d ~/Library/LaunchAgents ]] && while IFS= read -r -d '' plist; do
@@ -1345,8 +1346,10 @@ find_app_files() {
         # Group Containers (special handling)
         if [[ -d ~/Library/Group\ Containers ]]; then
             while IFS= read -r -d '' container; do
-                files_to_clean+=("$container")
-            done < <(command find ~/Library/Group\ Containers -maxdepth 1 \( -name "*$bundle_id*" \) -print0 2> /dev/null)
+                if mole_name_has_bundle_id_boundary "$container" "$bundle_id"; then
+                    files_to_clean+=("$container")
+                fi
+            done < <(command find ~/Library/Group\ Containers -maxdepth 1 -type d -print0 2> /dev/null)
         fi
 
         # App extensions often use bundle-id-derived directories rather than the
@@ -1363,6 +1366,7 @@ find_app_files() {
         for derived_root in "${derived_bundle_roots[@]}"; do
             [[ -d "$derived_root" ]] || continue
             while IFS= read -r -d '' derived_path; do
+                mole_name_has_bundle_id_boundary "$derived_path" "$bundle_id" || continue
                 already_added=false
                 for existing_path in "${files_to_clean[@]}"; do
                     if [[ "$existing_path" == "$derived_path" ]]; then
@@ -1371,7 +1375,7 @@ find_app_files() {
                     fi
                 done
                 [[ "$already_added" == "true" ]] || files_to_clean+=("$derived_path")
-            done < <(command find "$derived_root" -maxdepth 1 -type d -name "*$bundle_id*" -print0 2> /dev/null)
+            done < <(command find "$derived_root" -maxdepth 1 -type d -print0 2> /dev/null)
         done
     fi
 
@@ -1671,8 +1675,7 @@ find_app_system_files() {
     # The two -name patterns are anchored at the dot boundary so that, e.g.,
     # bundle "com.foo" matches "com.foo.plist" and "com.foo.helper.plist" but
     # NOT "com.foobar.plist" from an unrelated vendor.
-    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" &&
-        "$bundle_id" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)+$ ]]; then
+    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
         for base in /Library/LaunchAgents /Library/LaunchDaemons; do
             [[ -d "$base" ]] && while IFS= read -r -d '' plist; do
                 system_files+=("$plist")
@@ -1691,14 +1694,18 @@ find_app_system_files() {
 
     # Privileged Helper Tools and Receipts (special handling)
     # Only search with bundle_id if it's valid (not empty and not "unknown")
-    if [[ -n "$bundle_id" && "$bundle_id" != "unknown" && ${#bundle_id} -gt 3 ]]; then
+    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
         [[ -d /Library/PrivilegedHelperTools ]] && while IFS= read -r -d '' helper; do
-            system_files+=("$helper")
-        done < <(command find /Library/PrivilegedHelperTools -maxdepth 1 \( -name "$bundle_id*" \) -print0 2> /dev/null)
+            if mole_name_starts_with_bundle_id_boundary "$helper" "$bundle_id"; then
+                system_files+=("$helper")
+            fi
+        done < <(command find /Library/PrivilegedHelperTools -maxdepth 1 -print0 2> /dev/null)
 
         [[ -d /private/var/db/receipts ]] && while IFS= read -r -d '' receipt; do
-            system_files+=("$receipt")
-        done < <(command find /private/var/db/receipts -maxdepth 1 \( -name "*$bundle_id*" \) -print0 2> /dev/null)
+            if mole_name_starts_with_bundle_id_boundary "$receipt" "$bundle_id"; then
+                system_files+=("$receipt")
+            fi
+        done < <(command find /private/var/db/receipts -maxdepth 1 -print0 2> /dev/null)
     fi
 
     # Raycast system-level files
@@ -1735,9 +1742,8 @@ find_app_receipt_files() {
     # Skip if no bundle ID
     [[ -z "$bundle_id" || "$bundle_id" == "unknown" ]] && return 0
 
-    # Validate bundle_id format to prevent wildcard injection
-    # Only allow alphanumeric characters, dots, hyphens, and underscores
-    if [[ ! "$bundle_id" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    # Validate bundle_id format to prevent wildcard or defaults-domain abuse.
+    if ! mole_is_reverse_dns_bundle_id "$bundle_id"; then
         debug_log "Invalid bundle_id format: $bundle_id"
         return 0
     fi
@@ -1749,8 +1755,10 @@ find_app_receipt_files() {
     # Usually in /var/db/receipts/
     if [[ -d /private/var/db/receipts ]]; then
         while IFS= read -r -d '' bom; do
-            bom_files+=("$bom")
-        done < <(find /private/var/db/receipts -maxdepth 1 -name "${bundle_id}*.bom" -print0 2> /dev/null)
+            if mole_name_starts_with_bundle_id_boundary "$bom" "$bundle_id"; then
+                bom_files+=("$bom")
+            fi
+        done < <(find /private/var/db/receipts -maxdepth 1 -name "*.bom" -print0 2> /dev/null)
     fi
 
     # Process bom files if any found
@@ -1867,7 +1875,7 @@ force_kill_app() {
     if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]] &&
         command -v osascript > /dev/null 2>&1; then
         local quit_target=""
-        if [[ "$bundle_id" =~ ^[A-Za-z0-9][-A-Za-z0-9]*(\.[A-Za-z0-9][-A-Za-z0-9]*)+$ ]]; then
+        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
             quit_target="id \"$bundle_id\""
         else
             # Escape embedded double quotes in app_name before passing into

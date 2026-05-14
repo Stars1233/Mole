@@ -200,6 +200,32 @@ EOF
 		|| { echo "missed legitimate LaunchAgent match"; exit 1; }
 }
 
+@test "find_app_files keeps bundle-id-derived paths on dot boundaries" {
+	mkdir -p "$HOME/Library/Preferences/ByHost"
+	mkdir -p "$HOME/Library/Group Containers/group.com.example.TestApp"
+	mkdir -p "$HOME/Library/Group Containers/group.com.example.TestApplication"
+	mkdir -p "$HOME/Library/Containers/com.example.TestApp.helper"
+	mkdir -p "$HOME/Library/Containers/com.example.TestApplication"
+	mkdir -p "$HOME/Library/Application Scripts/TEAM.com.example.TestApp.Extension"
+	mkdir -p "$HOME/Library/Application Scripts/TEAM.com.example.TestApplication.Extension"
+	touch "$HOME/Library/Preferences/ByHost/com.example.TestApp.ABC123.plist"
+	touch "$HOME/Library/Preferences/ByHost/com.example.TestApplication.ABC123.plist"
+
+	result="$(
+		HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+find_app_files "com.example.TestApp" "TestApp"
+EOF
+	)"
+
+	[[ "$result" == *"ByHost/com.example.TestApp.ABC123.plist"* ]] || { echo "missed ByHost plist"; exit 1; }
+	[[ "$result" == *"Group Containers/group.com.example.TestApp"* ]] || { echo "missed group container"; exit 1; }
+	[[ "$result" == *"Containers/com.example.TestApp.helper"* ]] || { echo "missed helper container"; exit 1; }
+	[[ "$result" == *"Application Scripts/TEAM.com.example.TestApp.Extension"* ]] || { echo "missed prefixed app script"; exit 1; }
+	[[ "$result" != *"TestApplication"* ]] || { echo "matched sibling bundle prefix"; printf '%s\n' "$result"; exit 1; }
+}
+
 @test "ByHost cleanup routes through user-mode mole_delete (no sudo prompt)" {
 	mkdir -p "$HOME/Library/Preferences/ByHost"
 	touch "$HOME/Library/Preferences/ByHost/com.example.TestApp.ABC123.plist"
@@ -247,6 +273,65 @@ if grep -q "ByHost.*com.example.TestApp.*plist|true" "$trace"; then
 fi
 
 grep -q "ByHost.*com.example.TestApp.*plist|false" "$trace"
+EOF
+
+	[ "$status" -eq 0 ]
+}
+
+@test "malformed bundle ids do not trigger defaults or ByHost side effects" {
+	mkdir -p "$HOME/Library/Preferences/ByHost"
+	touch "$HOME/Library/Preferences/ByHost/com.example.TestApp.ABC123.plist"
+	mkdir -p "$HOME/Applications/TestApp.app"
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/uninstall/batch.sh"
+
+trace="$HOME/side_effects.log"
+
+defaults() {
+	printf 'defaults:%s\n' "$*" >> "$trace"
+	return 0
+}
+mole_delete() {
+	printf 'mole_delete:%s|%s\n' "$1" "${2:-false}" >> "$trace"
+	return 0
+}
+find_app_files() { return 0; }
+find_app_system_files() { return 0; }
+get_diagnostic_report_paths_for_app() { return 0; }
+remove_login_item() { :; }
+unregister_app_bundle() { :; }
+force_kill_app() { return 0; }
+request_sudo_access() { return 0; }
+ensure_sudo_session() { return 0; }
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+enter_alt_screen() { :; }
+leave_alt_screen() { :; }
+hide_cursor() { :; }
+show_cursor() { :; }
+pgrep() { return 1; }
+pkill() { return 0; }
+sudo() { return 0; }
+
+for bad_id in "-g" "NSGlobalDomain" "com-example"; do
+	: > "$trace"
+	selected_apps=()
+	selected_apps+=("0|$HOME/Applications/TestApp.app|TestApp|$bad_id|0|Never")
+	files_cleaned=0
+	total_items=0
+	total_size_cleaned=0
+
+	batch_uninstall_applications </dev/null
+
+	if grep -q '^defaults:' "$trace" || grep -q 'ByHost' "$trace"; then
+		echo "unexpected domain cleanup side effect for $bad_id"
+		cat "$trace"
+		exit 1
+	fi
+done
 EOF
 
 	[ "$status" -eq 0 ]
