@@ -75,6 +75,24 @@ fi
 exit 0
 SCRIPT
 	chmod +x "$dir/bioutil"
+
+	cat >"$dir/chown" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 0
+SCRIPT
+	chmod +x "$dir/chown"
+
+	cat >"$dir/install" <<'SCRIPT'
+#!/usr/bin/env bash
+args=()
+skip_next=""
+for arg in "$@"; do
+    if [[ -n "$skip_next" ]]; then skip_next=""; continue; fi
+    case "$arg" in -o|-g) skip_next=1 ;; *) args+=("$arg") ;; esac
+done
+exec /usr/bin/install "${args[@]}"
+SCRIPT
+	chmod +x "$dir/install"
 }
 
 setup() {
@@ -386,6 +404,66 @@ EOF
 
 	run grep "pam_tid.so" "$pam_file"
 	[ "$status" -ne 0 ]
+}
+
+@test "enable_touchid sets correct file permissions on pam file" {
+	pam_file="$HOME/pam_perms_enable"
+	cat >"$pam_file" <<'EOF'
+auth       sufficient     pam_opendirectory.so
+EOF
+
+	fake_bin="$HOME/fake-bin-perms-enable"
+	create_fake_utils "$fake_bin"
+
+	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable
+	[ "$status" -eq 0 ]
+	grep -q "pam_tid.so" "$pam_file"
+
+	local perms
+	perms=$(stat -f "%Lp" "$pam_file" 2>/dev/null || stat -c "%a" "$pam_file" 2>/dev/null)
+	[ "$perms" = "444" ]
+}
+
+@test "disable_touchid sets correct file permissions on pam file" {
+	pam_file="$HOME/pam_perms_disable"
+	cat >"$pam_file" <<'EOF'
+auth       sufficient     pam_tid.so
+auth       sufficient     pam_opendirectory.so
+EOF
+
+	fake_bin="$HOME/fake-bin-perms-disable"
+	create_fake_utils "$fake_bin"
+
+	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" disable
+	[ "$status" -eq 0 ]
+
+	local perms
+	perms=$(stat -f "%Lp" "$pam_file" 2>/dev/null || stat -c "%a" "$pam_file" 2>/dev/null)
+	[ "$perms" = "444" ]
+}
+
+@test "enable_touchid sets correct permissions on sudo_local file" {
+	pam_file="$HOME/pam_perms_sudolocal"
+	pam_local="$(dirname "$pam_file")/sudo_local_perms"
+	cat >"$pam_file" <<'EOF'
+# sudo: auth account password session
+auth       include        sudo_local
+auth       sufficient     pam_opendirectory.so
+EOF
+
+	fake_bin="$HOME/fake-bin-perms-sudolocal"
+	create_fake_utils "$fake_bin"
+
+	run env PATH="$fake_bin:$PATH" \
+		MOLE_PAM_SUDO_FILE="$pam_file" \
+		MOLE_PAM_SUDO_LOCAL_FILE="$pam_local" \
+		"$PROJECT_ROOT/bin/touchid.sh" enable
+	[ "$status" -eq 0 ]
+	grep -q "pam_tid.so" "$pam_local"
+
+	local perms
+	perms=$(stat -f "%Lp" "$pam_local" 2>/dev/null || stat -c "%a" "$pam_local" 2>/dev/null)
+	[ "$perms" = "444" ]
 }
 
 # --- JSON output mode tests ---
