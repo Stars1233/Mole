@@ -134,7 +134,7 @@ All deletion routes pass through `lib/core/file_ops.sh`:
 - `should_protect_path()` - Prefix and pattern matching
 - `safe_remove()`, `safe_find_delete()`, `safe_sudo_remove()` - Guarded operations
 
-See [`journal/2026-03-11-safe-remove-design.md`](journal/2026-03-11-safe-remove-design.md) for design rationale.
+The current design rationale is kept in this audit document so the safety model stays next to the implementation notes.
 
 ## Protected Directories and Categories
 
