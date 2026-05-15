@@ -203,6 +203,7 @@ Key properties:
 - sudo Trash routing refuses unsafe Trash locations, including symlinked Trash directories
 - authentication, SIP/MDM, and read-only filesystem failures are classified separately in file-operation results
 - sudo credential prompting passes through the system's native PAM prompt rather than a hardcoded string, ensuring correct behavior across locales and PAM configurations
+- Touch ID PAM configuration (`mo touchid`) uses `sudo install -m 444 -o root -g wheel` for atomic file writes, preventing temporary permission windows where PAM files could be user-writable (fixed in V1.39.0; prior versions used `sudo mv` which preserved temp-file ownership)
 
 When sudo is denied or unavailable, Mole prefers skipping privileged cleanup to forcing execution through unsafe fallback behavior.
 
@@ -216,7 +217,7 @@ Examples of conservative handling include:
 - orphaned app data waits for inactivity windows before cleanup
 - Claude VM orphan cleanup uses a separate stricter rule
 - uninstall file lists are decoded and revalidated before removal
-- reverse-DNS bundle ID validation is required before LaunchAgent and LaunchDaemon pattern matching
+- reverse-DNS bundle ID validation is required before LaunchAgent and LaunchDaemon pattern matching; bundle ID matching uses boundary-aware comparisons (`mole_name_starts_with_bundle_id_boundary`, `mole_name_has_bundle_id_boundary`) to prevent cross-app false matches (e.g. `com.example` not matching `com.example123`), and `defaults delete` is guarded by `mole_is_reverse_dns_bundle_id()` to reject malformed or adversarial domain strings
 - LaunchAgents that only declare `MachServices` are unload-only and are not treated as safe deletion targets without a backing executable or bundle match
 
 Installed-app detection is broader than a single `/Applications` scan and includes:
@@ -296,6 +297,9 @@ Key coverage areas include:
 - sudo credential prompting and session management (`tests/manage_sudo.bats`)
 - purge config path discovery and write behavior (`tests/purge_config_paths.bats`)
 - hint and cleanup-hint flows (`tests/clean_hints.bats`)
+- Touch ID PAM file permission enforcement (`tests/cli.bats`)
+- bundle ID boundary matching and malformed-ID rejection (`tests/uninstall_safety.bats`)
+- bash 3.2 empty-array nounset compatibility (`tests/uninstall_scan_bash32.bats`)
 
 ## Known Limitations and Future Work
 

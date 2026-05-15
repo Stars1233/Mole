@@ -6,6 +6,7 @@ clean_trash() {
     if is_path_whitelisted "$HOME/.Trash"; then
         return 0
     fi
+    stop_section_spinner
 
     local trash_count
     local trash_count_status=0
@@ -62,11 +63,13 @@ clean_user_essentials() {
 
     safe_clean ~/Library/Logs/* "User app logs"
 
+    start_section_spinner "Cleaning runtime files..."
     _clean_darwin_user_runtime_dirs
 
     if [[ "${MOLE_SKIP_TRASH_CLEANUP:-0}" != "1" ]]; then
         clean_trash
     fi
+    stop_section_spinner
 
     # Recent items
     _clean_recent_items
@@ -282,6 +285,7 @@ _clean_darwin_user_runtime_dir() {
     fi
 
     if [[ "$found_any" == "true" ]]; then
+        stop_section_spinner
         local size_human
         size_human=$(bytes_to_human "$((total_size_kb * 1024))")
         local cap_note=""
